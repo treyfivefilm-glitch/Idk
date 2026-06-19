@@ -1,10 +1,7 @@
-export type ViewMode = 'list' | 'card';
-export type SortMode = 'recent' | 'title' | 'value';
+export type SortMode = 'value' | 'gain' | 'series';
 export type GroupMode = 'none' | 'series' | 'creator' | 'grade' | 'box';
 
 interface CollectionToolbarProps {
-  view: ViewMode;
-  onViewChange(view: ViewMode): void;
   sort: SortMode;
   onSortChange(sort: SortMode): void;
   group: GroupMode;
@@ -13,37 +10,16 @@ interface CollectionToolbarProps {
   showBoxGroup: boolean;
 }
 
-export function CollectionToolbar({
-  view,
-  onViewChange,
-  sort,
-  onSortChange,
-  group,
-  onGroupChange,
-  showBoxGroup,
-}: CollectionToolbarProps) {
+export function CollectionToolbar({ sort, onSortChange, group, onGroupChange, showBoxGroup }: CollectionToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <div className="flex rounded-full border border-slate-200 p-0.5" role="group" aria-label="View">
-        <ViewButton label="List" selected={view === 'list'} onClick={() => onViewChange('list')} />
-        <ViewButton label="Cards" selected={view === 'card'} onClick={() => onViewChange('card')} />
+      <div className="flex rounded-full border border-slate-200 p-0.5" role="group" aria-label="Sort by">
+        <TabButton label="Value" selected={sort === 'value'} onClick={() => onSortChange('value')} />
+        <TabButton label="Gain" selected={sort === 'gain'} onClick={() => onSortChange('gain')} />
+        <TabButton label="Series" selected={sort === 'series'} onClick={() => onSortChange('series')} />
       </div>
 
       <div className="flex items-center gap-2">
-        <label className="sr-only" htmlFor="collection-sort">
-          Sort by
-        </label>
-        <select
-          id="collection-sort"
-          value={sort}
-          onChange={(e) => onSortChange(e.target.value as SortMode)}
-          className="rounded-full border border-slate-200 bg-paper px-2.5 py-1.5 text-xs font-semibold text-ink"
-        >
-          <option value="recent">Recently added</option>
-          <option value="title">Title</option>
-          <option value="value">Value</option>
-        </select>
-
         <label className="sr-only" htmlFor="collection-group">
           Group by
         </label>
@@ -64,7 +40,7 @@ export function CollectionToolbar({
   );
 }
 
-function ViewButton({ label, selected, onClick }: { label: string; selected: boolean; onClick(): void }) {
+function TabButton({ label, selected, onClick }: { label: string; selected: boolean; onClick(): void }) {
   return (
     <button
       type="button"

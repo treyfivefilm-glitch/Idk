@@ -3,6 +3,7 @@ import { AppFrame } from './components/layout/AppFrame';
 import { RootLayout } from './components/layout/RootLayout';
 import { HomePage } from './pages/HomePage';
 import { CollectionPage } from './pages/CollectionPage';
+import { MarketMoversPage } from './pages/MarketMoversPage';
 import { AccountPage } from './pages/AccountPage';
 import { ResultsPage } from './pages/ResultsPage';
 import { ComicDetailPage } from './pages/ComicDetailPage';
@@ -22,6 +23,7 @@ function App() {
               <Route element={<RootLayout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/collection" element={<CollectionPage />} />
+                <Route path="/movers" element={<MarketMoversPage />} />
                 <Route path="/account" element={<AccountPage />} />
               </Route>
               <Route path="/results/:issueId" element={<ResultsPage />} />

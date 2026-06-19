@@ -11,16 +11,34 @@ import { CompsList } from '../components/CompsList';
 import { UpsellCard } from '../components/UpsellCard';
 import { HowCalculatedSheet } from '../components/HowCalculatedSheet';
 import { AddToCollectionSheet } from '../components/AddToCollectionSheet';
+import { TickerCode } from '../components/TickerCode';
+import { GainLossPill } from '../components/GainLossPill';
+import { AreaChart } from '../components/AreaChart';
 import { getIssueById } from '../data/catalog';
 import { fetchValue, type ValueResult } from '../services/value';
-import { calculateBand, adjustBandForCondition, gradingAdvice, formatGradedSaleLabel } from '../lib/valuation';
+import {
+  calculateBand,
+  adjustBandForCondition,
+  gradingAdvice,
+  formatGradedSaleLabel,
+  formatCurrency,
+} from '../lib/valuation';
 import { ebaySoldListingsUrl, ebayActiveListingsUrl } from '../lib/ebay';
 import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 import { useBilling } from '../context/useBilling';
 import { useCollection } from '../context/useCollection';
+import { buildValueHistory, seededPercentChange } from '../lib/history';
+import { tickerCode } from '../lib/ticker';
 import type { Condition, RawListing } from '../types/comic';
 
 const FREE_COMPS_LIMIT = 3;
+
+const RANGES: { label: '1M' | '3M' | '1Y' | 'ALL'; points: number }[] = [
+  { label: '1M', points: 4 },
+  { label: '3M', points: 6 },
+  { label: '1Y', points: 10 },
+  { label: 'ALL', points: 14 },
+];
 
 export function ResultsPage() {
   const { issueId } = useParams<{ issueId: string }>();
@@ -33,6 +51,7 @@ export function ResultsPage() {
   const [valueState, setValueState] = useState<{ issueId: string; data: ValueResult } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [range, setRange] = useState<(typeof RANGES)[number]['label']>('3M');
 
   useEffect(() => {
     if (!issue) return;
@@ -90,8 +109,11 @@ export function ResultsPage() {
               <h2 className="text-xl font-bold text-ink">
                 {issue.title} {issue.issueNumber}
               </h2>
-              <p className="text-sm text-ink-soft">
-                {issue.publisher} · {issue.year}
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-soft">
+                <TickerCode code={tickerCode(issue)} className="text-sm font-semibold" />
+                <span>
+                  · {issue.publisher} · {issue.year}
+                </span>
               </p>
             </div>
             {issue.isKeyIssue ? <KeyIssueBadge /> : null}
@@ -119,6 +141,50 @@ export function ResultsPage() {
           <Spinner label="Pulling recent prices…" />
         ) : (
           <>
+            {adjustedRaw ? (
+              <div className="rounded-2xl border border-slate-200 bg-paper p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <TickerCode code={tickerCode(issue)} className="text-xs font-semibold" />
+                  <div className="flex gap-1">
+                    {RANGES.map((r) => (
+                      <button
+                        key={r.label}
+                        type="button"
+                        onClick={() => setRange(r.label)}
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          range === r.label ? 'bg-brand text-ink-on-brand' : 'text-ink-soft hover:bg-slate-50'
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="font-display text-2xl font-semibold text-ink">
+                    {formatCurrency(adjustedRaw.median)}
+                  </span>
+                  <GainLossPill percent={seededPercentChange(issue.id)} />
+                </div>
+                <div className="mt-3">
+                  <AreaChart
+                    values={buildValueHistory(
+                      issue.id,
+                      adjustedRaw.low,
+                      adjustedRaw.high,
+                      RANGES.find((r) => r.label === range)?.points,
+                    ).map((p) => (p.low + p.high) / 2)}
+                    positive={seededPercentChange(issue.id) >= 0}
+                    height={80}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Illustrative — price history is a simulated trend, not yet a record of real period-over-period
+                  snapshots.
+                </p>
+              </div>
+            ) : null}
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-ink">Value range</h3>
@@ -186,13 +252,14 @@ export function ResultsPage() {
             </div>
 
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Recent sold sales — graded</h3>
+              <h3 className="mb-2 text-sm font-semibold text-ink">Recent Trades — graded</h3>
               {isPro ? (
                 <CompsList
                   items={value?.gradedSales ?? []}
                   formatLabel={formatGradedSaleLabel}
                   dateVerb="Sold"
                   emptyMessage="No recent graded sales found for this issue."
+                  referenceMedian={gradedBandTrimmed?.median}
                 />
               ) : (
                 <UpsellCard message="Full graded sold-sale history is part of PanelWorth Pro." />

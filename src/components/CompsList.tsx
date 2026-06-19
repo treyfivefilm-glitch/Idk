@@ -1,4 +1,5 @@
 import { formatCurrency } from '../lib/valuation';
+import { GainLossPill } from './GainLossPill';
 
 function relativeDate(iso: string): string {
   const days = Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -18,6 +19,8 @@ interface CompsListProps<T extends { price: number; date: string }> {
   /** Limits how many rows render — used to give free users a teaser instead of the full history. */
   limit?: number;
   emptyMessage: string;
+  /** When set, shows a per-row gain/loss pill comparing each item's price against this median — only meaningful for sold (not asking) data. */
+  referenceMedian?: number;
 }
 
 export function CompsList<T extends { price: number; date: string }>({
@@ -26,6 +29,7 @@ export function CompsList<T extends { price: number; date: string }>({
   dateVerb,
   limit,
   emptyMessage,
+  referenceMedian,
 }: CompsListProps<T>) {
   const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = limit ? sorted.slice(0, limit) : sorted;
@@ -44,7 +48,14 @@ export function CompsList<T extends { price: number; date: string }>({
               {dateVerb} {relativeDate(item.date)}
             </p>
           </div>
-          <p className="font-semibold text-ink">{formatCurrency(item.price)}</p>
+          <div className="text-right">
+            <p className="font-mono font-semibold text-ink">{formatCurrency(item.price)}</p>
+            {referenceMedian ? (
+              <div className="mt-0.5 flex justify-end">
+                <GainLossPill percent={((item.price - referenceMedian) / referenceMedian) * 100} size="sm" />
+              </div>
+            ) : null}
+          </div>
         </li>
       ))}
     </ul>

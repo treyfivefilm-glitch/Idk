@@ -5,14 +5,15 @@ import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { UpsellCard } from '../components/UpsellCard';
 import { BoxTabs } from '../components/BoxTabs';
-import { CollectionToolbar, type ViewMode, type SortMode, type GroupMode } from '../components/CollectionToolbar';
-import { SavedComicTile, type FlatBand } from '../components/SavedComicTile';
+import { CollectionToolbar, type SortMode, type GroupMode } from '../components/CollectionToolbar';
+import { HoldingListRow, type FlatBand } from '../components/HoldingListRow';
 import { ValueSummaryCard } from '../components/ValueSummaryCard';
 import { useCollection } from '../context/useCollection';
 import { useBilling } from '../context/useBilling';
 import { getIssueById } from '../data/catalog';
 import { fetchValue } from '../services/value';
 import { calculateBand, adjustBandForCondition } from '../lib/valuation';
+import { seededPercentChange } from '../lib/history';
 import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 import { CONDITIONS } from '../types/comic';
 import type { Collection, ComicIssue, GradedSale, RawListing, SavedComic, ValueBand } from '../types/comic';
@@ -90,8 +91,7 @@ export function CollectionPage() {
   const { isPro } = useBilling();
 
   const [activeBoxId, setActiveBoxId] = useState<string | 'all'>('all');
-  const [view, setView] = useState<ViewMode>('list');
-  const [sort, setSort] = useState<SortMode>('recent');
+  const [sort, setSort] = useState<SortMode>('value');
   const [group, setGroup] = useState<GroupMode>('none');
 
   const [creatingBox, setCreatingBox] = useState(false);
@@ -152,12 +152,12 @@ export function CollectionPage() {
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
-    if (sort === 'recent') {
-      arr.sort((a, b) => b.saved.savedAt.localeCompare(a.saved.savedAt));
-    } else if (sort === 'title') {
+    if (sort === 'series') {
       arr.sort((a, b) =>
         `${a.issue.title} ${a.issue.issueNumber}`.localeCompare(`${b.issue.title} ${b.issue.issueNumber}`),
       );
+    } else if (sort === 'gain') {
+      arr.sort((a, b) => seededPercentChange(b.issue.id) - seededPercentChange(a.issue.id));
     } else if (sort === 'value') {
       arr.sort((a, b) => {
         const bandA = resolveBand(a.saved)?.median ?? -1;
@@ -370,8 +370,6 @@ export function CollectionPage() {
         ) : null}
 
         <CollectionToolbar
-          view={view}
-          onViewChange={setView}
           sort={sort}
           onSortChange={setSort}
           group={effectiveGroup}
@@ -401,15 +399,15 @@ export function CollectionPage() {
               return (
                 <div key={key || 'all'}>
                   {key ? <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{key}</h3> : null}
-                  <div className={view === 'card' ? 'grid grid-cols-2 gap-3' : 'space-y-2'}>
+                  <div className="space-y-2">
                     {groupItems.map(({ saved, issue }) => (
-                      <SavedComicTile
+                      <HoldingListRow
                         key={saved.savedId}
                         saved={saved}
                         issue={issue}
-                        view={view}
                         band={resolveBand(saved)}
                         loading={!(saved.issueId in valueMap)}
+                        percentChange={seededPercentChange(issue.id)}
                       />
                     ))}
                   </div>

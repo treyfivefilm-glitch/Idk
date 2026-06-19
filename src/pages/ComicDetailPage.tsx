@@ -6,10 +6,12 @@ import { Spinner } from '../components/Spinner';
 import { KeyIssueBadge } from '../components/KeyIssueBadge';
 import { ConditionSelector } from '../components/ConditionSelector';
 import { ValueRangeCard } from '../components/ValueRangeCard';
+import { TickerCode } from '../components/TickerCode';
 import { useCollection } from '../context/useCollection';
 import { getIssueById } from '../data/catalog';
 import { fetchValue } from '../services/value';
 import { calculateBand, adjustBandForCondition } from '../lib/valuation';
+import { tickerCode } from '../lib/ticker';
 import type { Condition, GradedSale, GradingCompany, RawListing, SavedComic, ValueBand } from '../types/comic';
 
 export function ComicDetailPage() {
@@ -150,6 +152,7 @@ export function ComicDetailPage() {
             )}
           </div>
           <div className="flex-1">
+            <TickerCode code={tickerCode(issue)} className="text-sm font-semibold" />
             <p className="text-sm text-ink-soft">
               {issue.publisher} · {issue.year}
             </p>

@@ -1,9 +1,8 @@
 import type { ValueHistoryPoint } from '../lib/history';
 
 const WIDTH = 240;
-const HEIGHT = 56;
 
-export function ValueHistorySparkline({ points }: { points: ValueHistoryPoint[] }) {
+export function ValueHistorySparkline({ points, height = 56 }: { points: ValueHistoryPoint[]; height?: number }) {
   if (points.length < 2) return null;
 
   const mids = points.map((p) => (p.low + p.high) / 2);
@@ -14,15 +13,15 @@ export function ValueHistorySparkline({ points }: { points: ValueHistoryPoint[] 
 
   const coords = mids.map((m, i) => {
     const x = (i / (mids.length - 1)) * WIDTH;
-    const y = HEIGHT - ((m - min) / span) * (HEIGHT - 8) - 4;
+    const y = height - ((m - min) / span) * (height - 8) - 4;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
 
   return (
     <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      viewBox={`0 0 ${WIDTH} ${height}`}
       width="100%"
-      height={HEIGHT}
+      height={height}
       aria-hidden="true"
       className="block"
     >
