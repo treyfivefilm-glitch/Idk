@@ -6,8 +6,8 @@ import { Spinner } from '../components/Spinner';
 import { ConditionSelector } from '../components/ConditionSelector';
 import { KeyIssueBadge } from '../components/KeyIssueBadge';
 import { UpsellCard } from '../components/UpsellCard';
-import { useCollection } from '../context/CollectionContext';
-import { useBilling } from '../context/BillingContext';
+import { useCollection } from '../context/useCollection';
+import { useBilling } from '../context/useBilling';
 import { getIssueById } from '../data/catalog';
 import { fetchComps } from '../services/comps';
 import { calculateRawBand, adjustBandForCondition, formatCurrency } from '../lib/valuation';
@@ -18,6 +18,8 @@ interface RowState {
   rawBand: ValueBand | null;
   loading: boolean;
 }
+
+type PricingEntry = ValueBand | null;
 
 function buildCsv(rows: RowState[]): string {
   const header = 'Title,Issue,Year,Publisher,Condition,Low,Median,High\n';
@@ -44,27 +46,36 @@ function buildCsv(rows: RowState[]): string {
 export function CollectionPage() {
   const { items, loading: itemsLoading, remove, setCondition } = useCollection();
   const { isPro } = useBilling();
-  const [rows, setRows] = useState<RowState[]>([]);
+  const [pricing, setPricing] = useState<Record<string, PricingEntry>>({});
 
   useEffect(() => {
     let active = true;
-    setRows(items.map((saved) => ({ saved, rawBand: null, loading: true })));
 
     Promise.all(
       items.map(async (saved) => {
         const comps = await fetchComps(saved.issueId);
         const trimmed = calculateRawBand(comps.raw);
         const band = trimmed ? adjustBandForCondition(trimmed, saved.condition) : null;
-        return { saved, rawBand: band, loading: false };
+        return [`${saved.savedId}:${saved.condition}`, band] as const;
       }),
-    ).then((result) => {
-      if (active) setRows(result);
+    ).then((entries) => {
+      if (active) setPricing(Object.fromEntries(entries));
     });
 
     return () => {
       active = false;
     };
   }, [items]);
+
+  const rows = useMemo<RowState[]>(
+    () =>
+      items.map((saved) => {
+        const key = `${saved.savedId}:${saved.condition}`;
+        const isLoading = !(key in pricing);
+        return { saved, rawBand: isLoading ? null : pricing[key], loading: isLoading };
+      }),
+    [items, pricing],
+  );
 
   const total = useMemo(() => {
     return rows.reduce(

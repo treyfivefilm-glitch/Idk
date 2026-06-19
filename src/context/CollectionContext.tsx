@@ -1,17 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { collectionStore } from '../services/collection';
+import { CollectionContext, type CollectionContextValue } from './collection-context';
 import type { Condition, SavedComic } from '../types/comic';
-
-interface CollectionContextValue {
-  items: SavedComic[];
-  loading: boolean;
-  isSaved(issueId: string): boolean;
-  add(issueId: string, condition: Condition): Promise<void>;
-  remove(savedId: string): Promise<void>;
-  setCondition(savedId: string, condition: Condition): Promise<void>;
-}
-
-const CollectionContext = createContext<CollectionContextValue | undefined>(undefined);
 
 export function CollectionProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<SavedComic[]>([]);
@@ -53,10 +43,4 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   );
 
   return <CollectionContext.Provider value={value}>{children}</CollectionContext.Provider>;
-}
-
-export function useCollection(): CollectionContextValue {
-  const ctx = useContext(CollectionContext);
-  if (!ctx) throw new Error('useCollection must be used within a CollectionProvider');
-  return ctx;
 }

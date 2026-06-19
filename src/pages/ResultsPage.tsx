@@ -13,8 +13,8 @@ import { getIssueById } from '../data/catalog';
 import { fetchComps, type CompsResult } from '../services/comps';
 import { calculateRawBand, adjustBandForCondition, gradingAdvice } from '../lib/valuation';
 import { ebaySoldListingsUrl } from '../lib/ebay';
-import { useBilling } from '../context/BillingContext';
-import { useCollection } from '../context/CollectionContext';
+import { useBilling } from '../context/useBilling';
+import { useCollection } from '../context/useCollection';
 import type { Condition } from '../types/comic';
 
 const FREE_COMPS_LIMIT = 3;
@@ -26,24 +26,24 @@ export function ResultsPage() {
   const { items, add, remove, setCondition: persistCondition } = useCollection();
 
   const [condition, setConditionState] = useState<Condition>('good');
-  const [comps, setComps] = useState<CompsResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [compsState, setCompsState] = useState<{ issueId: string; data: CompsResult } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!issue) return;
     let active = true;
-    setLoading(true);
     fetchComps(issue.id).then((result) => {
       if (active) {
-        setComps(result);
-        setLoading(false);
+        setCompsState({ issueId: issue.id, data: result });
       }
     });
     return () => {
       active = false;
     };
   }, [issue]);
+
+  const loading = !issue || compsState?.issueId !== issue.id;
+  const comps = issue && compsState?.issueId === issue.id ? compsState.data : null;
 
   const savedEntry = issue ? items.find((item) => item.issueId === issue.id) : undefined;
 
