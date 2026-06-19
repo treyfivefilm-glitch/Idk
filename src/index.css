@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #0f172a;
+  --color-ink-soft: #475569;
+  --color-paper: #ffffff;
+  --color-paper-muted: #f8fafc;
+  --color-brand: #1d4ed8;
+  --color-brand-dark: #1e3a8a;
+  --color-brand-soft: #dbeafe;
+  --color-value: #15803d;
+  --color-value-soft: #dcfce7;
+  --color-key: #b45309;
+  --color-key-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper-muted);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Strong, visible focus rings everywhere instead of relying on default outlines. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion preferences app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen-safe {
+    min-height: -webkit-fill-available;
+  }
+}
