@@ -7,13 +7,30 @@ export const CONDITIONS: { value: Condition; label: string; hint: string }[] = [
   { value: 'likeNew', label: 'Like-new', hint: 'Sharp corners, glossy, fresh-feeling' },
 ];
 
-/** A single recent SOLD sale used as a comp (comparable sale) for pricing. */
-export interface SoldComp {
+export type GradingCompany = 'CGC' | 'CBCS';
+
+/** A single recent professionally-graded SOLD sale (from GoCollect once live). */
+export interface GradedSale {
   /** Final sold price in USD. */
   price: number;
-  /** ISO date string the sale closed. */
+  /** ISO date the sale closed. */
   date: string;
-  /** Human label for what sold, e.g. "VF (raw)" or "CGC 9.4". */
+  /** Certified numeric grade, e.g. 9.4. */
+  grade: number;
+  gradingCompany: GradingCompany;
+  saleType: 'auction' | 'fixed price';
+}
+
+/**
+ * A single currently-ACTIVE raw listing — an asking price, not a sold price
+ * (from eBay's Browse API once live, since sold raw data isn't available to
+ * new developers). Must always be labeled as asking, never presented as sold.
+ */
+export interface RawListing {
+  price: number;
+  /** ISO date the listing was posted/observed. */
+  date: string;
+  /** Human label for the listing, e.g. "Listed · VF". */
   label: string;
 }
 
@@ -23,33 +40,57 @@ export interface ComicIssue {
   issueNumber: string;
   year: number;
   publisher: string;
+  /** Writer/artist credits, used for "group by creator" in the collection. */
+  creators: string[];
   /** One-line context on why (or whether) this issue matters. */
   note: string;
   isKeyIssue: boolean;
   /** UPC/EAN barcode, when the issue's print run included one. Older books often lack one. */
   barcode?: string;
-  /** Recent sold prices for raw (ungraded) copies. */
-  rawSales: SoldComp[];
-  /** Recent sold prices for professionally graded (CGC/CBCS) copies. */
-  gradedSales: SoldComp[];
+  /** Recent currently-listed raw asking prices. */
+  rawListings: RawListing[];
+  /** Recent professionally-graded (CGC/CBCS) sold prices. */
+  gradedSales: GradedSale[];
 }
 
 /** A computed, condition-adjusted price band — never a single number. */
-export interface ValueBand {
+export interface ValueBand<T extends { price: number } = { price: number }> {
   low: number;
   median: number;
   high: number;
-  /** The comps that were actually used (outliers removed), pre-condition-adjustment. */
-  usedComps: SoldComp[];
-  /** The comps dropped as outliers (single highest + single lowest), for transparency. */
-  excludedComps: SoldComp[];
+  /** The entries actually used (outliers removed), pre-condition-adjustment. */
+  usedComps: T[];
+  /** The entries dropped as outliers (single highest + single lowest), for transparency. */
+  excludedComps: T[];
 }
 
-/** A comic saved into the user's collection. */
+/** A named collection ("box") a comic can be filed into. */
+export interface Collection {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+/** A comic saved into one of the user's collections, plus personal record-keeping fields. */
 export interface SavedComic {
   /** Unique id for this saved entry (not the same as the catalog issue id). */
   savedId: string;
   issueId: string;
+  collectionId: string;
+  /** Used to adjust the raw asking-price band; irrelevant once `isSlabbed` is true. */
   condition: Condition;
   savedAt: string;
+  /** Whether this specific physical copy is professionally graded and encapsulated. */
+  isSlabbed: boolean;
+  /** Certified or self-assessed numeric grade. */
+  grade?: number;
+  gradingCompany?: GradingCompany;
+  purchasePrice?: number;
+  purchaseDate?: string;
+  /** Free-text physical location, e.g. "Box 3, closet shelf". */
+  storageBox?: string;
+  signedBy?: string;
+  notes?: string;
+  /** Data URL of a user-uploaded photo of their actual copy. */
+  personalCoverUrl?: string;
 }

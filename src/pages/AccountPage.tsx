@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useBilling } from '../context/useBilling';
+import { useCollection } from '../context/useCollection';
+import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 
 export function AccountPage() {
   const { isPro, plan, renewsAt, cancel, restore } = useBilling();
+  const { items } = useCollection();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [justCancelled, setJustCancelled] = useState(false);
@@ -52,6 +55,19 @@ export function AccountPage() {
               Upgrade to Pro
             </Link>
           ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Collection</p>
+          <p className="mt-1 text-lg font-bold text-ink">
+            {items.length}
+            {isPro ? '' : ` of ${FREE_COLLECTION_LIMIT}`} comic{items.length === 1 ? '' : 's'}
+          </p>
+          <p className="mt-0.5 text-sm text-ink-soft">
+            {isPro
+              ? 'Unlimited on PanelWorth Pro.'
+              : `Free plan — capped at ${FREE_COLLECTION_LIMIT} comics combined across all boxes.`}
+          </p>
         </div>
 
         {isPro ? (

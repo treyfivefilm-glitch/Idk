@@ -2,15 +2,23 @@ import { Link } from 'react-router-dom';
 import type { ValueBand } from '../types/comic';
 import { formatCurrency } from '../lib/valuation';
 
-interface ValueRangeCardProps {
+interface ValueRangeCardProps<T extends { price: number }> {
   title: string;
   subtitle?: string;
-  band: ValueBand | null;
+  band: ValueBand<T> | null;
   accent?: 'brand' | 'value';
   locked?: boolean;
+  emptyMessage?: string;
 }
 
-export function ValueRangeCard({ title, subtitle, band, accent = 'value', locked }: ValueRangeCardProps) {
+export function ValueRangeCard<T extends { price: number }>({
+  title,
+  subtitle,
+  band,
+  accent = 'value',
+  locked,
+  emptyMessage = 'Not enough recent data to price reliably.',
+}: ValueRangeCardProps<T>) {
   const accentText = accent === 'value' ? 'text-value' : 'text-brand-dark';
 
   return (
@@ -31,7 +39,7 @@ export function ValueRangeCard({ title, subtitle, band, accent = 'value', locked
           </Link>
         </div>
       ) : band === null ? (
-        <p className="mt-2 text-sm text-ink-soft">Not enough recent sales to price reliably.</p>
+        <p className="mt-2 text-sm text-ink-soft">{emptyMessage}</p>
       ) : (
         <>
           <p className={`mt-1 text-2xl font-bold ${accentText}`}>

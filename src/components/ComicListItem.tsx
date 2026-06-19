@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom';
 import type { ComicIssue } from '../types/comic';
 import { KeyIssueBadge } from './KeyIssueBadge';
+import { OwnedBadge } from './OwnedBadge';
 
 interface ComicListItemProps {
   issue: ComicIssue;
   to: string;
   right?: React.ReactNode;
+  /** Shows an "in your collection" badge — used to surface the duplicate-saver check in search/scan results. */
+  owned?: boolean;
 }
 
-export function ComicListItem({ issue, to, right }: ComicListItemProps) {
+export function ComicListItem({ issue, to, right, owned }: ComicListItemProps) {
   return (
     <Link
       to={to}
@@ -24,7 +27,12 @@ export function ComicListItem({ issue, to, right }: ComicListItemProps) {
         <p className="truncate text-xs text-ink-soft">
           {issue.publisher} · {issue.year}
         </p>
-        {issue.isKeyIssue ? <div className="mt-1">{<KeyIssueBadge />}</div> : null}
+        {issue.isKeyIssue || owned ? (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {issue.isKeyIssue ? <KeyIssueBadge /> : null}
+            {owned ? <OwnedBadge /> : null}
+          </div>
+        ) : null}
       </div>
       {right}
     </Link>

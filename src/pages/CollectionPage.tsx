@@ -3,36 +3,77 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
-import { ConditionSelector } from '../components/ConditionSelector';
-import { KeyIssueBadge } from '../components/KeyIssueBadge';
 import { UpsellCard } from '../components/UpsellCard';
+import { BoxTabs } from '../components/BoxTabs';
+import { CollectionToolbar, type ViewMode, type SortMode, type GroupMode } from '../components/CollectionToolbar';
+import { SavedComicTile, type FlatBand } from '../components/SavedComicTile';
+import { ValueSummaryCard } from '../components/ValueSummaryCard';
 import { useCollection } from '../context/useCollection';
 import { useBilling } from '../context/useBilling';
 import { getIssueById } from '../data/catalog';
-import { fetchComps } from '../services/comps';
-import { calculateRawBand, adjustBandForCondition, formatCurrency } from '../lib/valuation';
-import type { Condition, SavedComic, ValueBand } from '../types/comic';
+import { fetchValue } from '../services/value';
+import { calculateBand, adjustBandForCondition } from '../lib/valuation';
+import { FREE_COLLECTION_LIMIT } from '../lib/limits';
+import { CONDITIONS } from '../types/comic';
+import type { Collection, ComicIssue, GradedSale, RawListing, SavedComic, ValueBand } from '../types/comic';
 
-interface RowState {
+interface Entry {
   saved: SavedComic;
-  rawBand: ValueBand | null;
-  loading: boolean;
+  issue: ComicIssue;
 }
 
-type PricingEntry = ValueBand | null;
+interface IssueBands {
+  raw: ValueBand<RawListing> | null;
+  graded: ValueBand<GradedSale> | null;
+}
 
-function buildCsv(rows: RowState[]): string {
-  const header = 'Title,Issue,Year,Publisher,Condition,Low,Median,High\n';
-  const lines = rows.map((row) => {
-    const issue = getIssueById(row.saved.issueId);
-    if (!issue) return '';
-    const band = row.rawBand;
+function flatten<T extends { price: number }>(band: ValueBand<T>): FlatBand {
+  return { low: band.low, median: band.median, high: band.high };
+}
+
+function gradeGroupLabel(saved: SavedComic): string {
+  if (saved.isSlabbed) {
+    return saved.gradingCompany && saved.grade != null ? `${saved.gradingCompany} ${saved.grade.toFixed(1)}` : 'Graded';
+  }
+  return CONDITIONS.find((c) => c.value === saved.condition)?.label ?? saved.condition;
+}
+
+function groupKeysFor(entry: Entry, group: GroupMode, collections: Collection[]): string[] {
+  switch (group) {
+    case 'series':
+      return [entry.issue.title];
+    case 'creator':
+      return entry.issue.creators;
+    case 'grade':
+      return [gradeGroupLabel(entry.saved)];
+    case 'box':
+      return [collections.find((c) => c.id === entry.saved.collectionId)?.name ?? 'Unfiled'];
+    default:
+      return [''];
+  }
+}
+
+function buildCsv(rows: Entry[], collections: Collection[], bandFor: (saved: SavedComic) => FlatBand | null): string {
+  const header =
+    'Title,Issue,Year,Publisher,Box,Slabbed,Grade,Grading Company,Condition,Purchase Price,Purchase Date,Storage,Signed By,Notes,Low,Median,High\n';
+  const lines = rows.map(({ saved, issue }) => {
+    const band = bandFor(saved);
+    const boxName = collections.find((c) => c.id === saved.collectionId)?.name ?? '';
     return [
       issue.title,
       issue.issueNumber,
       issue.year,
       issue.publisher,
-      row.saved.condition,
+      boxName,
+      saved.isSlabbed ? 'Yes' : 'No',
+      saved.grade ?? '',
+      saved.gradingCompany ?? '',
+      saved.isSlabbed ? '' : saved.condition,
+      saved.purchasePrice ?? '',
+      saved.purchaseDate ?? '',
+      saved.storageBox ?? '',
+      saved.signedBy ?? '',
+      saved.notes ?? '',
       band?.low ?? '',
       band?.median ?? '',
       band?.high ?? '',
@@ -40,26 +81,46 @@ function buildCsv(rows: RowState[]): string {
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(',');
   });
-  return header + lines.filter(Boolean).join('\n');
+  return header + lines.join('\n');
 }
 
 export function CollectionPage() {
-  const { items, loading: itemsLoading, remove, setCondition } = useCollection();
+  const { collections, items, loading: itemsLoading, createCollection, renameCollection, deleteCollection } =
+    useCollection();
   const { isPro } = useBilling();
-  const [pricing, setPricing] = useState<Record<string, PricingEntry>>({});
+
+  const [activeBoxId, setActiveBoxId] = useState<string | 'all'>('all');
+  const [view, setView] = useState<ViewMode>('list');
+  const [sort, setSort] = useState<SortMode>('recent');
+  const [group, setGroup] = useState<GroupMode>('none');
+
+  const [creatingBox, setCreatingBox] = useState(false);
+  const [newBoxName, setNewBoxName] = useState('');
+  const [editingBoxName, setEditingBoxName] = useState(false);
+  const [boxNameDraft, setBoxNameDraft] = useState('');
+  const [confirmDeleteBox, setConfirmDeleteBox] = useState(false);
+
+  const [valueMap, setValueMap] = useState<Record<string, IssueBands>>({});
+
+  const effectiveGroup: GroupMode = activeBoxId !== 'all' && group === 'box' ? 'none' : group;
+
+  function selectBox(id: string | 'all') {
+    setActiveBoxId(id);
+    setEditingBoxName(false);
+    setConfirmDeleteBox(false);
+  }
 
   useEffect(() => {
     let active = true;
+    const uniqueIssueIds = Array.from(new Set(items.map((i) => i.issueId)));
 
     Promise.all(
-      items.map(async (saved) => {
-        const comps = await fetchComps(saved.issueId);
-        const trimmed = calculateRawBand(comps.raw);
-        const band = trimmed ? adjustBandForCondition(trimmed, saved.condition) : null;
-        return [`${saved.savedId}:${saved.condition}`, band] as const;
+      uniqueIssueIds.map(async (issueId) => {
+        const result = await fetchValue(issueId);
+        return [issueId, { raw: calculateBand(result.rawListings), graded: calculateBand(result.gradedSales) }] as const;
       }),
     ).then((entries) => {
-      if (active) setPricing(Object.fromEntries(entries));
+      if (active) setValueMap(Object.fromEntries(entries));
     });
 
     return () => {
@@ -67,28 +128,107 @@ export function CollectionPage() {
     };
   }, [items]);
 
-  const rows = useMemo<RowState[]>(
+  function resolveBand(saved: SavedComic): FlatBand | null {
+    const bands = valueMap[saved.issueId];
+    if (!bands) return null;
+    if (saved.isSlabbed) {
+      return bands.graded ? flatten(bands.graded) : null;
+    }
+    return bands.raw ? flatten(adjustBandForCondition(bands.raw, saved.condition)) : null;
+  }
+
+  const enriched = useMemo<Entry[]>(
     () =>
-      items.map((saved) => {
-        const key = `${saved.savedId}:${saved.condition}`;
-        const isLoading = !(key in pricing);
-        return { saved, rawBand: isLoading ? null : pricing[key], loading: isLoading };
-      }),
-    [items, pricing],
+      items
+        .map((saved) => ({ saved, issue: getIssueById(saved.issueId) }))
+        .filter((e): e is Entry => Boolean(e.issue)),
+    [items],
   );
 
-  const total = useMemo(() => {
-    return rows.reduce(
-      (acc, row) => {
-        if (!row.rawBand) return acc;
-        return { low: acc.low + row.rawBand.low, high: acc.high + row.rawBand.high };
-      },
-      { low: 0, high: 0 },
-    );
-  }, [rows]);
+  const filtered = useMemo(
+    () => (activeBoxId === 'all' ? enriched : enriched.filter((e) => e.saved.collectionId === activeBoxId)),
+    [enriched, activeBoxId],
+  );
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    if (sort === 'recent') {
+      arr.sort((a, b) => b.saved.savedAt.localeCompare(a.saved.savedAt));
+    } else if (sort === 'title') {
+      arr.sort((a, b) =>
+        `${a.issue.title} ${a.issue.issueNumber}`.localeCompare(`${b.issue.title} ${b.issue.issueNumber}`),
+      );
+    } else if (sort === 'value') {
+      arr.sort((a, b) => {
+        const bandA = resolveBand(a.saved)?.median ?? -1;
+        const bandB = resolveBand(b.saved)?.median ?? -1;
+        return bandB - bandA;
+      });
+    }
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sort, valueMap]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Entry[]>();
+    for (const entry of sorted) {
+      for (const key of groupKeysFor(entry, effectiveGroup, collections)) {
+        const list = map.get(key) ?? [];
+        list.push(entry);
+        map.set(key, list);
+      }
+    }
+    return map;
+  }, [sorted, effectiveGroup, collections]);
+
+  const groupKeysOrdered =
+    effectiveGroup === 'none' ? [''] : Array.from(grouped.keys()).sort((a, b) => a.localeCompare(b));
+
+  const summary = useMemo(() => {
+    let low = 0;
+    let high = 0;
+    let pricedCount = 0;
+    for (const entry of sorted) {
+      const band = resolveBand(entry.saved);
+      if (band) {
+        low += band.low;
+        high += band.high;
+        pricedCount++;
+      }
+    }
+    return { low, high, pricedCount, totalCount: sorted.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sorted, valueMap]);
+
+  const activeBox = activeBoxId === 'all' ? undefined : collections.find((c) => c.id === activeBoxId);
+
+  async function handleCreateBox() {
+    const name = newBoxName.trim();
+    if (!name) return;
+    const entry = await createCollection(name);
+    setNewBoxName('');
+    setCreatingBox(false);
+    selectBox(entry.id);
+  }
+
+  async function handleSaveBoxName() {
+    const name = boxNameDraft.trim();
+    if (!name || !activeBox) {
+      setEditingBoxName(false);
+      return;
+    }
+    await renameCollection(activeBox.id, name);
+    setEditingBoxName(false);
+  }
+
+  async function handleDeleteBox() {
+    if (!activeBox) return;
+    await deleteCollection(activeBox.id);
+    selectBox('all');
+  }
 
   function handleExport() {
-    const csv = buildCsv(rows);
+    const csv = buildCsv(sorted, collections, resolveBand);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -124,30 +264,120 @@ export function CollectionPage() {
     );
   }
 
-  const pricedRows = rows.filter((r) => r.rawBand);
-  const hasUnpriced = rows.some((r) => !r.loading && !r.rawBand);
-
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
       <PageHeader title="Collection" />
 
       <div className="space-y-4 px-4 py-4">
-        <div className="rounded-2xl border border-slate-200 bg-paper p-4">
-          <p className="text-sm font-semibold text-ink">Estimated total (raw)</p>
-          {pricedRows.length === 0 ? (
-            <p className="mt-1 text-sm text-ink-soft">Not enough recent sales to price your collection reliably.</p>
-          ) : (
-            <>
-              <p className="mt-1 text-2xl font-bold text-value">
-                {formatCurrency(total.low)}–{formatCurrency(total.high)}
-              </p>
-              <p className="mt-0.5 text-xs text-ink-soft">
-                Based on {pricedRows.length} of {rows.length} item{rows.length === 1 ? '' : 's'} with enough sales
-                data{hasUnpriced ? '; the rest are excluded from this total.' : '.'}
-              </p>
-            </>
-          )}
-        </div>
+        <ValueSummaryCard
+          seedKey={activeBoxId}
+          low={summary.low}
+          high={summary.high}
+          pricedCount={summary.pricedCount}
+          totalCount={summary.totalCount}
+          isPro={isPro}
+        />
+
+        {!isPro && items.length >= FREE_COLLECTION_LIMIT ? (
+          <UpsellCard message={`Your free collection is capped at ${FREE_COLLECTION_LIMIT} comics. Go Pro for unlimited boxes.`} />
+        ) : null}
+
+        <BoxTabs
+          collections={collections}
+          activeId={activeBoxId}
+          onSelect={selectBox}
+          onCreateNew={() => setCreatingBox(true)}
+        />
+
+        {creatingBox ? (
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              type="text"
+              value={newBoxName}
+              onChange={(e) => setNewBoxName(e.target.value)}
+              placeholder="Box name"
+              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-ink placeholder:text-ink-soft"
+            />
+            <button
+              type="button"
+              onClick={handleCreateBox}
+              className="rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreatingBox(false);
+                setNewBoxName('');
+              }}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-ink-soft"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+
+        {activeBox ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            {editingBoxName ? (
+              <div className="flex flex-1 items-center gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  value={boxNameDraft}
+                  onChange={(e) => setBoxNameDraft(e.target.value)}
+                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm text-ink"
+                />
+                <button type="button" onClick={handleSaveBoxName} className="font-semibold text-brand">
+                  Save
+                </button>
+                <button type="button" onClick={() => setEditingBoxName(false)} className="text-ink-soft">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setBoxNameDraft(activeBox.name);
+                  setEditingBoxName(true);
+                }}
+                className="font-semibold text-ink hover:underline"
+              >
+                Rename "{activeBox.name}"
+              </button>
+            )}
+            {!editingBoxName ? (
+              confirmDeleteBox ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-danger">Delete this box and its items?</span>
+                  <button type="button" onClick={handleDeleteBox} className="font-semibold text-danger">
+                    Yes
+                  </button>
+                  <button type="button" onClick={() => setConfirmDeleteBox(false)} className="text-ink-soft">
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmDeleteBox(true)} className="text-danger">
+                  Delete box
+                </button>
+              )
+            ) : null}
+          </div>
+        ) : null}
+
+        <CollectionToolbar
+          view={view}
+          onViewChange={setView}
+          sort={sort}
+          onSortChange={setSort}
+          group={effectiveGroup}
+          onGroupChange={setGroup}
+          showBoxGroup={activeBoxId === 'all'}
+        />
 
         {isPro ? (
           <button
@@ -161,72 +391,34 @@ export function CollectionPage() {
           <UpsellCard message="Export your collection to a spreadsheet with PanelWorth Pro." />
         )}
 
-        <ul className="space-y-3">
-          {rows.map((row) => (
-            <CollectionRow
-              key={row.saved.savedId}
-              row={row}
-              onRemove={() => remove(row.saved.savedId)}
-              onConditionChange={(condition) => setCondition(row.saved.savedId, condition)}
-            />
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function CollectionRow({
-  row,
-  onRemove,
-  onConditionChange,
-}: {
-  row: RowState;
-  onRemove(): void;
-  onConditionChange(condition: Condition): void;
-}) {
-  const issue = getIssueById(row.saved.issueId);
-  if (!issue) return null;
-
-  return (
-    <li className="rounded-2xl border border-slate-200 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <Link to={`/results/${issue.id}`} className="font-semibold text-ink hover:underline">
-            {issue.title} {issue.issueNumber}
-          </Link>
-          <p className="text-xs text-ink-soft">
-            {issue.publisher} · {issue.year}
-          </p>
-          {issue.isKeyIssue ? <div className="mt-1">{<KeyIssueBadge />}</div> : null}
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${issue.title} ${issue.issueNumber} from collection`}
-          className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-ink-soft hover:bg-slate-100 hover:text-danger"
-        >
-          <svg viewBox="0 0 24 24" fill="none" className="h-4.5 w-4.5" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="mt-3">
-        <ConditionSelector value={row.saved.condition} onChange={onConditionChange} />
-      </div>
-
-      <div className="mt-3">
-        {row.loading ? (
-          <p className="text-sm text-ink-soft">Pricing…</p>
-        ) : row.rawBand ? (
-          <p className="text-sm font-semibold text-value">
-            {formatCurrency(row.rawBand.low)}–{formatCurrency(row.rawBand.high)}
-          </p>
+        {sorted.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-soft">Nothing in this box yet.</p>
         ) : (
-          <p className="text-sm text-ink-soft">Not enough recent sales to price reliably.</p>
+          <div className="space-y-5">
+            {groupKeysOrdered.map((key) => {
+              const groupItems = grouped.get(key) ?? [];
+              if (groupItems.length === 0) return null;
+              return (
+                <div key={key || 'all'}>
+                  {key ? <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{key}</h3> : null}
+                  <div className={view === 'card' ? 'grid grid-cols-2 gap-3' : 'space-y-2'}>
+                    {groupItems.map(({ saved, issue }) => (
+                      <SavedComicTile
+                        key={saved.savedId}
+                        saved={saved}
+                        issue={issue}
+                        view={view}
+                        band={resolveBand(saved)}
+                        loading={!(saved.issueId in valueMap)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
-    </li>
+    </div>
   );
 }

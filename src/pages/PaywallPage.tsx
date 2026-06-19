@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useBilling } from '../context/useBilling';
 import { PLAN_PRICES, type PlanId } from '../services/billing';
+import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 
 const FEATURES: { label: string; free: boolean; pro: boolean }[] = [
   { label: 'Identify by search, cover scan, or barcode', free: true, pro: true },
-  { label: 'Basic raw value range', free: true, pro: true },
+  { label: 'Basic raw asking-price range', free: true, pro: true },
   { label: 'Save comics to your collection', free: true, pro: true },
-  { label: 'Full sold-comps history', free: false, pro: true },
-  { label: 'Graded (CGC/CBCS) estimates', free: false, pro: true },
+  { label: `Unlimited collection size (free capped at ${FREE_COLLECTION_LIMIT})`, free: false, pro: true },
+  { label: 'Full raw listing history', free: false, pro: true },
+  { label: 'Graded (CGC/CBCS) sold-price estimates & history', free: false, pro: true },
+  { label: 'Collection value history & tracking', free: false, pro: true },
   { label: 'Collection CSV export', free: false, pro: true },
 ];
 
@@ -36,7 +39,7 @@ export function PaywallPage() {
           </div>
           <h2 className="mt-3 text-lg font-semibold text-ink">You're on Pro</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Full sold-comps history, graded estimates, and collection export are unlocked.
+            Unlimited collection size, full raw &amp; graded history, value tracking, and CSV export are unlocked.
           </p>
           <button
             type="button"

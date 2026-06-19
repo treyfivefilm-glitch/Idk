@@ -4,7 +4,9 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { Spinner } from '../components/Spinner';
 import { ConfidenceBadge } from '../components/ConfidenceBadge';
 import { KeyIssueBadge } from '../components/KeyIssueBadge';
+import { OwnedBadge } from '../components/OwnedBadge';
 import { identifyByImage, LOW_CONFIDENCE_THRESHOLD, type RecognitionCandidate } from '../services/recognition';
+import { useCollection } from '../context/useCollection';
 
 type Step = 'idle' | 'identifying' | 'confirm' | 'error';
 
@@ -12,6 +14,7 @@ export function ScanCoverPage() {
   const navigate = useNavigate();
   const inputId = useId();
   const libraryInputId = useId();
+  const { isSaved } = useCollection();
   const [step, setStep] = useState<Step>('idle');
   const [candidate, setCandidate] = useState<RecognitionCandidate | null>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -129,8 +132,9 @@ export function ScanCoverPage() {
                 </div>
                 {candidate.issue.isKeyIssue ? <KeyIssueBadge /> : null}
               </div>
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <ConfidenceBadge confidence={candidate.confidence} />
+                {isSaved(candidate.issue.id) ? <OwnedBadge /> : null}
               </div>
             </div>
 

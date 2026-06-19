@@ -1,4 +1,4 @@
-import type { ComicIssue, SoldComp } from '../types/comic';
+import type { ComicIssue, GradedSale, RawListing } from '../types/comic';
 
 /** Returns an ISO date string `n` days before now, so the seed data always reads as "recent". */
 function daysAgo(n: number): string {
@@ -7,8 +7,28 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function comps(entries: [price: number, label: string, daysBack: number][]): SoldComp[] {
-  return entries.map(([price, label, daysBack]) => ({ price, label, date: daysAgo(daysBack) }));
+/** Raw, currently-ACTIVE asking listings — never sold data. Label mirrors a real eBay listing title. */
+function listings(entries: [price: number, label: string, daysBack: number][]): RawListing[] {
+  return entries.map(([price, label, daysBack]) => ({ price, label: `Listed · ${label}`, date: daysAgo(daysBack) }));
+}
+
+/** Professionally-graded SOLD sales. */
+function sales(
+  entries: [
+    price: number,
+    grade: number,
+    gradingCompany: GradedSale['gradingCompany'],
+    saleType: GradedSale['saleType'],
+    daysBack: number,
+  ][],
+): GradedSale[] {
+  return entries.map(([price, grade, gradingCompany, saleType, daysBack]) => ({
+    price,
+    grade,
+    gradingCompany,
+    saleType,
+    date: daysAgo(daysBack),
+  }));
 }
 
 export const CATALOG: ComicIssue[] = [
@@ -18,27 +38,28 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#300',
     year: 1988,
     publisher: 'Marvel Comics',
+    creators: ['David Michelinie', 'Todd McFarlane'],
     note: 'First full appearance of Venom, classic McFarlane cover.',
     isKeyIssue: true,
     barcode: '071486028703',
-    rawSales: comps([
-      [150, 'GD (raw)', 58],
-      [180, 'VG (raw)', 51],
-      [220, 'FN (raw)', 44],
-      [245, 'FN/VF (raw)', 37],
-      [275, 'VF (raw)', 29],
-      [310, 'VF (raw)', 21],
-      [395, 'VF/NM (raw)', 12],
-      [460, 'NM- (raw)', 4],
+    rawListings: listings([
+      [165, 'GD', 3],
+      [195, 'VG', 7],
+      [230, 'FN', 11],
+      [260, 'FN/VF', 5],
+      [295, 'VF', 9],
+      [330, 'VF', 14],
+      [410, 'VF/NM', 2],
+      [480, 'NM-', 20],
     ]),
-    gradedSales: comps([
-      [540, 'CGC 8.0', 49],
-      [650, 'CGC 8.5', 40],
-      [720, 'CBCS 9.0', 33],
-      [980, 'CGC 9.2', 25],
-      [1450, 'CGC 9.4', 18],
-      [2200, 'CGC 9.6', 9],
-      [3100, 'CGC 9.8', 2],
+    gradedSales: sales([
+      [540, 8.0, 'CGC', 'auction', 49],
+      [650, 8.5, 'CGC', 'fixed price', 40],
+      [720, 9.0, 'CBCS', 'auction', 33],
+      [980, 9.2, 'CGC', 'fixed price', 25],
+      [1450, 9.4, 'CGC', 'auction', 18],
+      [2200, 9.6, 'CGC', 'fixed price', 9],
+      [3100, 9.8, 'CGC', 'auction', 2],
     ]),
   },
   {
@@ -47,27 +68,28 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#181',
     year: 1974,
     publisher: 'Marvel Comics',
+    creators: ['Len Wein', 'Herb Trimpe'],
     note: 'First full appearance of Wolverine — one of the most sought-after Bronze Age keys.',
     isKeyIssue: true,
     // Pre-dates UPC barcodes on comics, so it's a good example of a book the scanner can't find by barcode.
-    rawSales: comps([
-      [750, 'GD/VG (raw)', 55],
-      [900, 'VG (raw)', 47],
-      [1100, 'VG/FN (raw)', 39],
-      [1300, 'FN (raw)', 31],
-      [1450, 'FN/VF (raw)', 23],
-      [1600, 'VF (raw)', 15],
-      [2200, 'VF/NM (raw)', 7],
-      [2750, 'NM- (raw)', 1],
+    rawListings: listings([
+      [780, 'GD/VG', 6],
+      [930, 'VG', 13],
+      [1140, 'VG/FN', 4],
+      [1340, 'FN', 18],
+      [1500, 'FN/VF', 9],
+      [1650, 'VF', 2],
+      [2300, 'VF/NM', 22],
+      [2850, 'NM-', 11],
     ]),
-    gradedSales: comps([
-      [3200, 'CGC 6.5', 52],
-      [4100, 'CGC 7.5', 42],
-      [5200, 'CBCS 8.0', 33],
-      [6800, 'CGC 8.5', 24],
-      [8200, 'CGC 9.0', 16],
-      [12000, 'CGC 9.4', 8],
-      [15500, 'CGC 9.6', 3],
+    gradedSales: sales([
+      [3200, 6.5, 'CGC', 'auction', 52],
+      [4100, 7.5, 'CGC', 'fixed price', 42],
+      [5200, 8.0, 'CBCS', 'auction', 33],
+      [6800, 8.5, 'CGC', 'fixed price', 24],
+      [8200, 9.0, 'CGC', 'auction', 16],
+      [12000, 9.4, 'CGC', 'fixed price', 8],
+      [15500, 9.6, 'CGC', 'auction', 3],
     ]),
   },
   {
@@ -76,26 +98,27 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#98',
     year: 1991,
     publisher: 'Marvel Comics',
+    creators: ['Rob Liefeld', 'Fabian Nicieza'],
     note: 'First appearance of Deadpool.',
     isKeyIssue: true,
     barcode: '071486028995',
-    rawSales: comps([
-      [45, 'GD (raw)', 50],
-      [60, 'VG (raw)', 43],
-      [75, 'FN (raw)', 36],
-      [90, 'FN/VF (raw)', 29],
-      [110, 'VF (raw)', 22],
-      [130, 'VF (raw)', 14],
-      [150, 'VF/NM (raw)', 7],
-      [200, 'NM- (raw)', 2],
+    rawListings: listings([
+      [48, 'GD', 5],
+      [63, 'VG', 9],
+      [78, 'FN', 16],
+      [95, 'FN/VF', 3],
+      [115, 'VF', 21],
+      [135, 'VF', 8],
+      [155, 'VF/NM', 12],
+      [210, 'NM-', 1],
     ]),
-    gradedSales: comps([
-      [280, 'CGC 8.5', 46],
-      [340, 'CBCS 9.0', 38],
-      [420, 'CGC 9.2', 29],
-      [510, 'CGC 9.4', 20],
-      [650, 'CGC 9.6', 11],
-      [800, 'CGC 9.8', 4],
+    gradedSales: sales([
+      [280, 8.5, 'CGC', 'fixed price', 46],
+      [340, 9.0, 'CBCS', 'auction', 38],
+      [420, 9.2, 'CGC', 'fixed price', 29],
+      [510, 9.4, 'CGC', 'auction', 20],
+      [650, 9.6, 'CGC', 'fixed price', 11],
+      [800, 9.8, 'CGC', 'auction', 4],
     ]),
   },
   {
@@ -104,25 +127,26 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#1',
     year: 2012,
     publisher: 'Image Comics',
+    creators: ['Brian K. Vaughan', 'Fiona Staples'],
     note: 'First issue of the acclaimed Vaughan/Staples series — a modern key with strong ongoing demand.',
     isKeyIssue: true,
     barcode: '709853024112',
-    rawSales: comps([
-      [12, 'GD/VG (raw)', 40],
-      [18, 'FN (raw)', 33],
-      [22, 'FN/VF (raw)', 27],
-      [25, 'VF (raw)', 20],
-      [28, 'VF (raw)', 13],
-      [32, 'VF/NM (raw)', 7],
-      [38, 'NM (raw)', 3],
-      [55, 'NM (raw)', 1],
+    rawListings: listings([
+      [13, 'GD/VG', 4],
+      [19, 'FN', 10],
+      [23, 'FN/VF', 17],
+      [26, 'VF', 2],
+      [29, 'VF', 7],
+      [34, 'VF/NM', 13],
+      [40, 'NM', 23],
+      [58, 'NM', 1],
     ]),
-    gradedSales: comps([
-      [65, 'CGC 9.4', 35],
-      [80, 'CGC 9.6', 26],
-      [95, 'CBCS 9.6', 18],
-      [120, 'CGC 9.8', 10],
-      [150, 'CGC 9.8', 4],
+    gradedSales: sales([
+      [65, 9.4, 'CGC', 'fixed price', 35],
+      [80, 9.6, 'CGC', 'auction', 26],
+      [95, 9.6, 'CBCS', 'fixed price', 18],
+      [120, 9.8, 'CGC', 'auction', 10],
+      [150, 9.8, 'CGC', 'fixed price', 4],
     ]),
   },
   {
@@ -131,25 +155,26 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#1',
     year: 1992,
     publisher: 'Image Comics',
+    creators: ['Todd McFarlane'],
     note: 'First appearance of Spawn — a McFarlane launch title, plentiful but still in demand.',
     isKeyIssue: true,
     barcode: '709853000018',
-    rawSales: comps([
-      [15, 'GD (raw)', 47],
-      [25, 'VG (raw)', 39],
-      [30, 'FN (raw)', 32],
-      [35, 'FN/VF (raw)', 25],
-      [40, 'VF (raw)', 18],
-      [45, 'VF (raw)', 11],
-      [55, 'VF/NM (raw)', 5],
-      [70, 'NM (raw)', 1],
+    rawListings: listings([
+      [16, 'GD', 6],
+      [27, 'VG', 11],
+      [32, 'FN', 19],
+      [37, 'FN/VF', 3],
+      [42, 'VF', 8],
+      [48, 'VF', 15],
+      [58, 'VF/NM', 24],
+      [72, 'NM', 1],
     ]),
-    gradedSales: comps([
-      [90, 'CGC 9.2', 36],
-      [110, 'CGC 9.4', 27],
-      [130, 'CGC 9.6', 19],
-      [160, 'CGC 9.8', 10],
-      [200, 'CGC 9.8', 3],
+    gradedSales: sales([
+      [90, 9.2, 'CGC', 'auction', 36],
+      [110, 9.4, 'CGC', 'fixed price', 27],
+      [130, 9.6, 'CBCS', 'auction', 19],
+      [160, 9.8, 'CGC', 'fixed price', 10],
+      [200, 9.8, 'CGC', 'auction', 3],
     ]),
   },
   {
@@ -158,23 +183,24 @@ export const CATALOG: ComicIssue[] = [
     issueNumber: '#1',
     year: 1991,
     publisher: 'Marvel Comics',
+    creators: ['Chris Claremont', 'Jim Lee'],
     note: 'Huge 1991 launch with one of the largest print runs in comics history (~8 million copies) — historically notable, but oversupply keeps resale value low even in top condition.',
     isKeyIssue: false,
     barcode: '071486029008',
-    rawSales: comps([
-      [2, 'GD (raw)', 44],
-      [3, 'VG (raw)', 37],
-      [4, 'FN (raw)', 30],
-      [5, 'FN/VF (raw)', 23],
-      [5, 'VF (raw)', 16],
-      [6, 'VF (raw)', 9],
-      [8, 'VF/NM (raw)', 4],
-      [12, 'NM (raw)', 1],
+    rawListings: listings([
+      [2, 'GD', 7],
+      [3, 'VG', 14],
+      [4, 'FN', 21],
+      [5, 'FN/VF', 2],
+      [5, 'VF', 9],
+      [6, 'VF', 16],
+      [8, 'VF/NM', 25],
+      [12, 'NM', 1],
     ]),
     // Deliberately sparse — most owners don't bother grading a common book, which is itself useful info.
-    gradedSales: comps([
-      [15, 'CGC 9.8', 30],
-      [20, 'CGC 9.8', 10],
+    gradedSales: sales([
+      [15, 9.8, 'CGC', 'auction', 30],
+      [20, 9.8, 'CGC', 'fixed price', 10],
     ]),
   },
 ];
@@ -188,10 +214,11 @@ export function getIssueByBarcode(barcode: string): ComicIssue | undefined {
 }
 
 export function searchCatalog(query: string): ComicIssue[] {
-  const q = query.trim().toLowerCase();
+  // Strip "#" so a query like "Spider-Man 300" matches an issue number stored as "#300".
+  const q = query.trim().toLowerCase().replace(/#/g, '');
   if (!q) return [];
   return CATALOG.filter((issue) => {
-    const haystack = `${issue.title} ${issue.issueNumber} ${issue.publisher} ${issue.year}`.toLowerCase();
+    const haystack = `${issue.title} ${issue.issueNumber} ${issue.publisher} ${issue.year}`.toLowerCase().replace(/#/g, '');
     return haystack.includes(q);
   });
 }

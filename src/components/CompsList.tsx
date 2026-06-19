@@ -1,4 +1,3 @@
-import type { SoldComp } from '../types/comic';
 import { formatCurrency } from '../lib/valuation';
 
 function relativeDate(iso: string): string {
@@ -10,29 +9,42 @@ function relativeDate(iso: string): string {
   return months === 1 ? '1 month ago' : `${months} months ago`;
 }
 
-interface CompsListProps {
-  comps: SoldComp[];
+interface CompsListProps<T extends { price: number; date: string }> {
+  items: T[];
+  /** Formats the row's leading label, e.g. a raw listing's `.label` or a graded sale's grade/company/sale type. */
+  formatLabel(item: T): string;
+  /** "Listed" for raw asking entries, "Sold" for graded sales — keeps the honesty distinction visible per-row. */
+  dateVerb: 'Listed' | 'Sold';
   /** Limits how many rows render — used to give free users a teaser instead of the full history. */
   limit?: number;
+  emptyMessage: string;
 }
 
-export function CompsList({ comps, limit }: CompsListProps) {
-  const sorted = [...comps].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export function CompsList<T extends { price: number; date: string }>({
+  items,
+  formatLabel,
+  dateVerb,
+  limit,
+  emptyMessage,
+}: CompsListProps<T>) {
+  const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = limit ? sorted.slice(0, limit) : sorted;
 
   if (visible.length === 0) {
-    return <p className="text-sm text-ink-soft">No recent sold listings found for this issue yet.</p>;
+    return <p className="text-sm text-ink-soft">{emptyMessage}</p>;
   }
 
   return (
     <ul className="divide-y divide-slate-100">
-      {visible.map((comp, i) => (
-        <li key={`${comp.date}-${comp.price}-${i}`} className="flex items-center justify-between py-2.5 text-sm">
+      {visible.map((item, i) => (
+        <li key={`${item.date}-${item.price}-${i}`} className="flex items-center justify-between py-2.5 text-sm">
           <div>
-            <p className="font-medium text-ink">{comp.label}</p>
-            <p className="text-xs text-ink-soft">Sold {relativeDate(comp.date)}</p>
+            <p className="font-medium text-ink">{formatLabel(item)}</p>
+            <p className="text-xs text-ink-soft">
+              {dateVerb} {relativeDate(item.date)}
+            </p>
           </div>
-          <p className="font-semibold text-ink">{formatCurrency(comp.price)}</p>
+          <p className="font-semibold text-ink">{formatCurrency(item.price)}</p>
         </li>
       ))}
     </ul>

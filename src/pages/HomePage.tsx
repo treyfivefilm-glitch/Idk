@@ -3,11 +3,21 @@ import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { ComicListItem } from '../components/ComicListItem';
 import { EmptyState } from '../components/EmptyState';
-import { searchCatalog } from '../data/catalog';
+import { searchCatalog, getIssueById } from '../data/catalog';
+import { useCollection } from '../context/useCollection';
+import type { ComicIssue, SavedComic } from '../types/comic';
 
 export function HomePage() {
   const [query, setQuery] = useState('');
   const results = useMemo(() => searchCatalog(query), [query]);
+  const { items, isSaved } = useCollection();
+
+  const recent = useMemo(() => {
+    const sorted = [...items].sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 5);
+    return sorted
+      .map((saved) => ({ saved, issue: getIssueById(saved.issueId) }))
+      .filter((entry): entry is { saved: SavedComic; issue: ComicIssue } => Boolean(entry.issue));
+  }, [items]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-6 pt-6">
@@ -44,6 +54,24 @@ export function HomePage() {
         catalog — full accuracy in production depends on live pricing data and a trained recognition model.
       </p>
 
+      {recent.length > 0 ? (
+        <div className="mt-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink">Recently added to your collection</h2>
+            <Link to="/collection" className="text-xs font-semibold text-brand">
+              See all
+            </Link>
+          </div>
+          <ul className="mt-2 space-y-2">
+            {recent.map(({ saved, issue }) => (
+              <li key={saved.savedId}>
+                <ComicListItem issue={issue} to={`/collection/${saved.savedId}`} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="mt-5">
         <SearchBar value={query} onChange={setQuery} />
       </div>
@@ -63,7 +91,7 @@ export function HomePage() {
           <ul className="space-y-2">
             {results.map((issue) => (
               <li key={issue.id}>
-                <ComicListItem issue={issue} to={`/results/${issue.id}`} />
+                <ComicListItem issue={issue} to={`/results/${issue.id}`} owned={isSaved(issue.id)} />
               </li>
             ))}
           </ul>

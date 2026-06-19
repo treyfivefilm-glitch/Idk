@@ -1,12 +1,12 @@
-import type { Condition, SoldComp, ValueBand } from '../types/comic';
+import type { Condition, GradedSale, RawListing, ValueBand } from '../types/comic';
 
 /**
- * Below this many recent sales, trimming an outlier on each end leaves too
+ * Below this many recent comps, trimming an outlier on each end leaves too
  * little signal to call the result reliable — we refuse to guess instead.
  */
-export const MIN_SALES_FOR_RELIABLE_PRICING = 4;
+export const MIN_SAMPLE_SIZE = 4;
 
-/** Condition shifts the band around the "good shape" baseline that recent sales already reflect. */
+/** Condition shifts the band around the "good shape" baseline recent raw asking prices already reflect. */
 export const CONDITION_MULTIPLIERS: Record<Condition, number> = {
   worn: 0.6,
   good: 1.0,
@@ -24,13 +24,15 @@ function median(values: number[]): number {
 }
 
 /**
- * Core honesty rule: drop the single highest and single lowest sale (likely
+ * Core honesty rule: drop the single highest and single lowest comp (likely
  * outliers — misgraded listings, bundle deals, panic sales), then report the
- * low–high band and median of what's left. Returns null when there isn't
- * enough recent data to do this reliably — callers must show that, not a number.
+ * low–high band and median of what's left. The same trimming logic serves
+ * both raw ASKING listings and graded SOLD sales — only the input array
+ * differs, never the math. Returns null when there isn't enough recent data
+ * to do this reliably — callers must show that, not a number.
  */
-export function calculateRawBand(comps: SoldComp[]): ValueBand | null {
-  if (comps.length < MIN_SALES_FOR_RELIABLE_PRICING) {
+export function calculateBand<T extends { price: number }>(comps: T[]): ValueBand<T> | null {
+  if (comps.length < MIN_SAMPLE_SIZE) {
     return null;
   }
 
@@ -48,8 +50,16 @@ export function calculateRawBand(comps: SoldComp[]): ValueBand | null {
   };
 }
 
-/** Applies the condition multiplier to an already-trimmed band and re-rounds every figure. */
-export function adjustBandForCondition(band: ValueBand, condition: Condition): ValueBand {
+/**
+ * Applies the condition multiplier to an already-trimmed band and re-rounds
+ * every figure. Only meaningful for raw bands — a slabbed copy's value comes
+ * from the graded band as-is (see ComicDetailPage), since condition is
+ * already captured by the certified grade.
+ */
+export function adjustBandForCondition<T extends { price: number }>(
+  band: ValueBand<T>,
+  condition: Condition,
+): ValueBand<T> {
   const multiplier = CONDITION_MULTIPLIERS[condition];
   return {
     ...band,
@@ -71,15 +81,26 @@ export function formatCurrencyRange(low: number, high: number): string {
   return `${formatCurrency(low)}–${formatCurrency(high)}`;
 }
 
+/** Human label for a graded sale, e.g. "CGC 9.4 · auction". A `RawListing` already carries its own `.label`. */
+export function formatGradedSaleLabel(sale: GradedSale): string {
+  return `${sale.gradingCompany} ${sale.grade.toFixed(1)} · ${sale.saleType}`;
+}
+
 const GRADING_COST_LOW = 20;
 const GRADING_COST_HIGH = 50;
 
 /**
  * Heuristic, plainly-labeled guidance (not a guarantee): is the typical
- * $20-50+ cost and multi-week wait for professional grading likely worth it
- * for this issue, based on the gap between raw and graded sale prices?
+ * $20–50+ cost and multi-week wait for professional grading likely worth it?
+ * Compares the raw ASKING band (what ungraded copies are listed for right
+ * now) against the graded SOLD band (what graded copies have actually closed
+ * for) — an imperfect, asking-vs-sold comparison, kept honestly labeled
+ * rather than presented as apples-to-apples.
  */
-export function gradingAdvice(rawBand: ValueBand | null, gradedBand: ValueBand | null): string {
+export function gradingAdvice(
+  rawBand: ValueBand<RawListing> | null,
+  gradedBand: ValueBand<GradedSale> | null,
+): string {
   if (!gradedBand) {
     return 'Not enough recent graded sales for this issue to compare — grading economics are unclear here.';
   }
@@ -94,9 +115,9 @@ export function gradingAdvice(rawBand: ValueBand | null, gradedBand: ValueBand |
   const worthwhile = gap > GRADING_COST_HIGH * 1.5;
 
   if (worthwhile) {
-    return `Graded copies have sold for noticeably more than raw ones (about ${formatCurrency(
+    return `Graded copies have sold for noticeably more than raw copies are currently asking (about ${formatCurrency(
       gap,
     )} more at the low end). Grading costs $${GRADING_COST_LOW}–$${GRADING_COST_HIGH}+ and takes weeks, but for a sharp copy of this issue it may be worth it.`;
   }
-  return `The gap between raw and graded sale prices is small for this issue. Since grading costs $${GRADING_COST_LOW}–$${GRADING_COST_HIGH}+ and takes weeks, it's likely only worth it for an exceptional copy.`;
+  return `The gap between current raw asking prices and graded sale prices is small for this issue. Since grading costs $${GRADING_COST_LOW}–$${GRADING_COST_HIGH}+ and takes weeks, it's likely only worth it for an exceptional copy.`;
 }

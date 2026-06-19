@@ -1,72 +1,65 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import { KeyIssueBadge } from '../components/KeyIssueBadge';
+import { OwnedBadge } from '../components/OwnedBadge';
 import { ConditionSelector } from '../components/ConditionSelector';
 import { ValueRangeCard } from '../components/ValueRangeCard';
 import { CompsList } from '../components/CompsList';
 import { UpsellCard } from '../components/UpsellCard';
 import { HowCalculatedSheet } from '../components/HowCalculatedSheet';
+import { AddToCollectionSheet } from '../components/AddToCollectionSheet';
 import { getIssueById } from '../data/catalog';
-import { fetchComps, type CompsResult } from '../services/comps';
-import { calculateRawBand, adjustBandForCondition, gradingAdvice } from '../lib/valuation';
-import { ebaySoldListingsUrl } from '../lib/ebay';
+import { fetchValue, type ValueResult } from '../services/value';
+import { calculateBand, adjustBandForCondition, gradingAdvice, formatGradedSaleLabel } from '../lib/valuation';
+import { ebaySoldListingsUrl, ebayActiveListingsUrl } from '../lib/ebay';
+import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 import { useBilling } from '../context/useBilling';
 import { useCollection } from '../context/useCollection';
-import type { Condition } from '../types/comic';
+import type { Condition, RawListing } from '../types/comic';
 
 const FREE_COMPS_LIMIT = 3;
 
 export function ResultsPage() {
   const { issueId } = useParams<{ issueId: string }>();
+  const navigate = useNavigate();
   const issue = issueId ? getIssueById(issueId) : undefined;
   const { isPro } = useBilling();
-  const { items, add, remove, setCondition: persistCondition } = useCollection();
+  const { items, savedCopiesOf, addItem } = useCollection();
 
-  const [condition, setConditionState] = useState<Condition>('good');
-  const [compsState, setCompsState] = useState<{ issueId: string; data: CompsResult } | null>(null);
+  const [condition, setCondition] = useState<Condition>('good');
+  const [valueState, setValueState] = useState<{ issueId: string; data: ValueResult } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!issue) return;
     let active = true;
-    fetchComps(issue.id).then((result) => {
-      if (active) {
-        setCompsState({ issueId: issue.id, data: result });
-      }
+    fetchValue(issue.id).then((result) => {
+      if (active) setValueState({ issueId: issue.id, data: result });
     });
     return () => {
       active = false;
     };
   }, [issue]);
 
-  const loading = !issue || compsState?.issueId !== issue.id;
-  const comps = issue && compsState?.issueId === issue.id ? compsState.data : null;
+  const loading = !issue || valueState?.issueId !== issue.id;
+  const value = issue && valueState?.issueId === issue.id ? valueState.data : null;
 
-  const savedEntry = issue ? items.find((item) => item.issueId === issue.id) : undefined;
+  const savedCopies = issue ? savedCopiesOf(issue.id) : [];
+  const atLimit = !isPro && items.length >= FREE_COLLECTION_LIMIT;
 
-  const rawBandTrimmed = useMemo(() => (comps ? calculateRawBand(comps.raw) : null), [comps]);
-  const gradedBandTrimmed = useMemo(() => (comps ? calculateRawBand(comps.graded) : null), [comps]);
-
+  const rawBandTrimmed = useMemo(() => (value ? calculateBand(value.rawListings) : null), [value]);
+  const gradedBandTrimmed = useMemo(() => (value ? calculateBand(value.gradedSales) : null), [value]);
   const adjustedRaw = rawBandTrimmed ? adjustBandForCondition(rawBandTrimmed, condition) : null;
-  const adjustedGraded = gradedBandTrimmed ? adjustBandForCondition(gradedBandTrimmed, condition) : null;
 
-  function handleConditionChange(next: Condition) {
-    setConditionState(next);
-    if (savedEntry) {
-      persistCondition(savedEntry.savedId, next);
-    }
-  }
-
-  function handleSaveToggle() {
+  async function handleAddConfirm(collectionId: string) {
     if (!issue) return;
-    if (savedEntry) {
-      remove(savedEntry.savedId);
-    } else {
-      add(issue.id, condition);
-    }
+    const saved = await addItem(issue.id, collectionId, condition);
+    setAddSheetOpen(false);
+    navigate(`/collection/${saved.savedId}`);
   }
 
   if (!issue) {
@@ -106,10 +99,24 @@ export function ResultsPage() {
           <p className="mt-2 text-sm text-ink-soft">{issue.note}</p>
         </div>
 
-        <ConditionSelector value={condition} onChange={handleConditionChange} />
+        {savedCopies.length > 0 ? (
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-value-soft px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <OwnedBadge />
+              <span className="text-xs text-ink-soft">
+                {savedCopies.length === 1 ? '1 copy' : `${savedCopies.length} copies`} in your collection
+              </span>
+            </div>
+            <Link to={`/collection/${savedCopies[0].savedId}`} className="text-xs font-semibold text-brand">
+              View
+            </Link>
+          </div>
+        ) : null}
+
+        <ConditionSelector value={condition} onChange={setCondition} />
 
         {loading ? (
-          <Spinner label="Pulling recent sold prices…" />
+          <Spinner label="Pulling recent prices…" />
         ) : (
           <>
             <div>
@@ -124,8 +131,21 @@ export function ResultsPage() {
                 </button>
               </div>
               <div className="space-y-3">
-                <ValueRangeCard title="Raw (ungraded)" band={adjustedRaw} accent="value" />
-                <ValueRangeCard title="Graded (CGC/CBCS)" band={adjustedGraded} accent="brand" locked={!isPro} />
+                <ValueRangeCard
+                  title="Raw — asking price"
+                  subtitle="currently listed"
+                  band={adjustedRaw}
+                  accent="value"
+                  emptyMessage="Not enough recent listings for this issue to price reliably."
+                />
+                <ValueRangeCard
+                  title="Graded (CGC/CBCS) — sold price"
+                  subtitle="actual sales"
+                  band={gradedBandTrimmed}
+                  accent="brand"
+                  locked={!isPro}
+                  emptyMessage="Not enough recent graded sales for this issue to price reliably."
+                />
               </div>
             </div>
 
@@ -138,56 +158,69 @@ export function ResultsPage() {
             )}
 
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Recent sold listings — raw</h3>
-              <CompsList comps={comps?.raw ?? []} limit={isPro ? undefined : FREE_COMPS_LIMIT} />
-              {!isPro && (comps?.raw.length ?? 0) > FREE_COMPS_LIMIT ? (
+              <h3 className="mb-2 text-sm font-semibold text-ink">Currently listed — raw</h3>
+              <CompsList
+                items={value?.rawListings ?? []}
+                formatLabel={(item: RawListing) => item.label}
+                dateVerb="Listed"
+                limit={isPro ? undefined : FREE_COMPS_LIMIT}
+                emptyMessage="No recent raw listings found for this issue."
+              />
+              {!isPro && (value?.rawListings.length ?? 0) > FREE_COMPS_LIMIT ? (
                 <p className="mt-2 text-xs text-ink-soft">
-                  Showing {FREE_COMPS_LIMIT} of {comps?.raw.length} sales.{' '}
+                  Showing {FREE_COMPS_LIMIT} of {value?.rawListings.length} listings.{' '}
                   <Link to="/paywall" className="font-semibold text-brand">
                     Unlock full history
                   </Link>
                 </p>
               ) : null}
+              <a
+                href={ebayActiveListingsUrl(issue.title, issue.issueNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-ink hover:border-slate-300"
+              >
+                See active listings on eBay
+                <ExternalIcon />
+              </a>
             </div>
 
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Recent sold listings — graded</h3>
+              <h3 className="mb-2 text-sm font-semibold text-ink">Recent sold sales — graded</h3>
               {isPro ? (
-                <CompsList comps={comps?.graded ?? []} />
+                <CompsList
+                  items={value?.gradedSales ?? []}
+                  formatLabel={formatGradedSaleLabel}
+                  dateVerb="Sold"
+                  emptyMessage="No recent graded sales found for this issue."
+                />
               ) : (
-                <UpsellCard message="Full graded sold-listing history is part of PanelWorth Pro." />
+                <UpsellCard message="Full graded sold-sale history is part of PanelWorth Pro." />
               )}
+              <a
+                href={ebaySoldListingsUrl(issue.title, issue.issueNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-ink hover:border-slate-300"
+              >
+                See sold listings on eBay
+                <ExternalIcon />
+              </a>
             </div>
 
-            <a
-              href={ebaySoldListingsUrl(issue.title, issue.issueNumber)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-ink hover:border-slate-300"
-            >
-              See sold listings on eBay
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-                <path
-                  d="M7 17L17 7M7 7h10v10"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </a>
-
-            <button
-              type="button"
-              onClick={handleSaveToggle}
-              className={`w-full rounded-xl py-3 text-sm font-semibold ${
-                savedEntry
-                  ? 'border border-slate-200 text-ink hover:border-slate-300'
-                  : 'bg-brand text-white hover:bg-brand-dark'
-              }`}
-            >
-              {savedEntry ? 'Remove from collection' : 'Add to collection'}
-            </button>
+            {atLimit ? (
+              <UpsellCard
+                message={`Your free collection is capped at ${FREE_COLLECTION_LIMIT} comics. Go Pro to add more.`}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddSheetOpen(true)}
+                className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-dark"
+              >
+                Add to collection
+              </button>
+            )}
           </>
         )}
       </div>
@@ -200,6 +233,22 @@ export function ResultsPage() {
         gradedBand={gradedBandTrimmed}
         gradedLocked={!isPro}
       />
+
+      <AddToCollectionSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} onConfirm={handleAddConfirm} />
     </div>
+  );
+}
+
+function ExternalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+      <path
+        d="M7 17L17 7M7 7h10v10"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
