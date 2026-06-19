@@ -9,6 +9,7 @@ interface HowCalculatedSheetProps {
   condition: Condition;
   rawBand: ValueBand | null;
   gradedBand: ValueBand | null;
+  gradedLocked?: boolean;
 }
 
 function BandBreakdown({ label, band, condition }: { label: string; band: ValueBand | null; condition: Condition }) {
@@ -49,7 +50,14 @@ function BandBreakdown({ label, band, condition }: { label: string; band: ValueB
   );
 }
 
-export function HowCalculatedSheet({ open, onClose, condition, rawBand, gradedBand }: HowCalculatedSheetProps) {
+export function HowCalculatedSheet({
+  open,
+  onClose,
+  condition,
+  rawBand,
+  gradedBand,
+  gradedLocked,
+}: HowCalculatedSheetProps) {
   return (
     <BottomSheet open={open} title="How we calculated this" onClose={onClose}>
       <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-soft">
@@ -62,7 +70,14 @@ export function HowCalculatedSheet({ open, onClose, condition, rawBand, gradedBa
 
       <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
         <BandBreakdown label="Raw" band={rawBand} condition={condition} />
-        <BandBreakdown label="Graded (CGC/CBCS)" band={gradedBand} condition={condition} />
+        {gradedLocked ? (
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Graded (CGC/CBCS)</h3>
+            <p className="mt-1 text-sm text-ink-soft">The graded breakdown is part of PanelWorth Pro.</p>
+          </div>
+        ) : (
+          <BandBreakdown label="Graded (CGC/CBCS)" band={gradedBand} condition={condition} />
+        )}
       </div>
     </BottomSheet>
   );
