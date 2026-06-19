@@ -71,7 +71,7 @@ function ViewButton({ label, selected, onClick }: { label: string; selected: boo
       aria-pressed={selected}
       onClick={onClick}
       className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-        selected ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
+        selected ? 'bg-brand text-ink-on-brand' : 'text-ink-soft hover:text-ink'
       }`}
     >
       {label}

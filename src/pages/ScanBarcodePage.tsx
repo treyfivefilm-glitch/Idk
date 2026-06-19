@@ -58,7 +58,7 @@ export function ScanBarcodePage() {
           <BarcodeIllustration />
           <label
             htmlFor={inputId}
-            className="cursor-pointer rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="cursor-pointer rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
           >
             Take a photo of the barcode
           </label>
@@ -112,7 +112,7 @@ export function ScanBarcodePage() {
             />
             <button
               type="submit"
-              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
             >
               Look up
             </button>

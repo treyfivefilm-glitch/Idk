@@ -50,7 +50,7 @@ export function AccountPage() {
           {!isPro ? (
             <Link
               to="/paywall"
-              className="mt-3 inline-block rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+              className="mt-3 inline-block rounded-full bg-brand px-4 py-2 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
             >
               Upgrade to Pro
             </Link>

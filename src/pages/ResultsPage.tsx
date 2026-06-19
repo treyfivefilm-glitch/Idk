@@ -216,7 +216,7 @@ export function ResultsPage() {
               <button
                 type="button"
                 onClick={() => setAddSheetOpen(true)}
-                className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
               >
                 Add to collection
               </button>

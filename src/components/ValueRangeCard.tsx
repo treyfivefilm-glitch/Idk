@@ -33,7 +33,7 @@ export function ValueRangeCard<T extends { price: number }>({
           <p className="text-sm text-ink-soft">Graded estimates are part of PanelWorth Pro.</p>
           <Link
             to="/paywall"
-            className="mt-2 inline-block rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="mt-2 inline-block rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
           >
             See plans
           </Link>

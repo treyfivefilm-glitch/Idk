@@ -44,7 +44,7 @@ export function PaywallPage() {
           <button
             type="button"
             onClick={() => navigate('/account')}
-            className="mt-5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="mt-5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
           >
             Manage subscription
           </button>
@@ -112,7 +112,7 @@ export function PaywallPage() {
           type="button"
           onClick={handleSubscribe}
           disabled={purchasing}
-          className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+          className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark disabled:opacity-60"
         >
           {purchasing ? 'Processing…' : `Subscribe — ${PLAN_PRICES[plan].amount}/${PLAN_PRICES[plan].per}`}
         </button>

@@ -6,7 +6,7 @@ export function UpsellCard({ message }: { message: string }) {
       <p className="text-sm text-brand-dark">{message}</p>
       <Link
         to="/paywall"
-        className="mt-2 inline-block rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark"
+        className="mt-2 inline-block rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
       >
         See plans
       </Link>

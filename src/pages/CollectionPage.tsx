@@ -255,7 +255,7 @@ export function CollectionPage() {
           title="Nothing saved yet"
           message="Scan a cover or barcode, or search for a comic, then add it here to track its value."
           action={
-            <Link to="/" className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
+            <Link to="/" className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-ink-on-brand">
               Find your first comic
             </Link>
           }
@@ -302,7 +302,7 @@ export function CollectionPage() {
             <button
               type="button"
               onClick={handleCreateBox}
-              className="rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-ink-on-brand"
             >
               Create
             </button>

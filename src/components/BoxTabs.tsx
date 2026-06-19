@@ -33,7 +33,7 @@ function Tab({ label, selected, onClick }: { label: string; selected: boolean; o
       aria-selected={selected}
       onClick={onClick}
       className={`flex-none rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
-        selected ? 'bg-brand text-white' : 'border border-slate-200 text-ink-soft hover:border-slate-300'
+        selected ? 'bg-brand text-ink-on-brand' : 'border border-slate-200 text-ink-soft hover:border-slate-300'
       }`}
     >
       {label}

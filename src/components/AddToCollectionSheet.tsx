@@ -75,7 +75,7 @@ export function AddToCollectionSheet({ open, onClose, onConfirm }: AddToCollecti
         type="button"
         onClick={() => activeId && onConfirm(activeId)}
         disabled={!activeId}
-        className="mt-4 w-full rounded-full bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        className="mt-4 w-full rounded-full bg-brand py-2.5 text-sm font-semibold text-ink-on-brand disabled:opacity-50"
       >
         Add to collection
       </button>

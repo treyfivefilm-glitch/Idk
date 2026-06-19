@@ -1,24 +1,46 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-ink: #0f172a;
-  --color-ink-soft: #475569;
-  --color-paper: #ffffff;
-  --color-paper-muted: #f8fafc;
-  --color-brand: #1d4ed8;
-  --color-brand-dark: #1e3a8a;
-  --color-brand-soft: #dbeafe;
-  --color-value: #15803d;
-  --color-value-soft: #dcfce7;
-  --color-key: #b45309;
-  --color-key-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
+  /* --- Ledger theme: dark brokerage/asset-tracker palette --- */
+  --color-ink: #e7eaf2;
+  --color-ink-soft: #6b7280;
+  --color-paper: #11151f;
+  --color-paper-muted: #0a0d14;
+  --color-panel-2: #171c2b;
+  --color-line: rgba(255, 255, 255, 0.08);
+
+  --color-brand: #46d6e8;
+  --color-brand-dark: #1c97a8;
+  --color-brand-soft: rgba(70, 214, 232, 0.14);
+  --color-ink-on-brand: #0a0d14;
+
+  --color-value: #43d17a;
+  --color-value-soft: rgba(67, 209, 122, 0.14);
+  --color-gain: #43d17a;
+  --color-gain-soft: rgba(67, 209, 122, 0.14);
+
+  --color-danger: #f0495c;
+  --color-danger-soft: rgba(240, 73, 92, 0.14);
+  --color-loss: #f0495c;
+  --color-loss-soft: rgba(240, 73, 92, 0.14);
+
+  --color-key: #f2b84b;
+  --color-key-soft: rgba(242, 184, 75, 0.14);
+
+  /* Re-theme every existing `border-slate-*` / `bg-slate-*` utility used across
+     the app (card borders, dividers, hover insets) without touching each file. */
+  --color-slate-50: #171c2b;
+  --color-slate-100: rgba(255, 255, 255, 0.08);
+  --color-slate-200: rgba(255, 255, 255, 0.08);
+  --color-slate-300: rgba(255, 255, 255, 0.16);
+
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {

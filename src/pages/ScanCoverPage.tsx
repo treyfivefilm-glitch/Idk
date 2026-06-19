@@ -56,7 +56,7 @@ export function ScanCoverPage() {
               <CameraIllustration />
               <label
                 htmlFor={inputId}
-                className="cursor-pointer rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="cursor-pointer rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
               >
                 Take a photo
               </label>
@@ -99,7 +99,7 @@ export function ScanCoverPage() {
               >
                 Try again
               </button>
-              <Link to="/" className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
+              <Link to="/" className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-ink-on-brand">
                 Search instead
               </Link>
             </div>
@@ -149,7 +149,7 @@ export function ScanCoverPage() {
               <button
                 type="button"
                 onClick={() => navigate(`/results/${candidate.issue.id}`)}
-                className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+                className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
               >
                 Yes, that's it
               </button>

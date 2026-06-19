@@ -52,3 +52,15 @@ export function buildValueHistory(
 
   return history;
 }
+
+/**
+ * Deterministic mock week-over-week percent change for ticker chips / Market
+ * Movers, seeded the same way as `buildValueHistory` — illustrative only,
+ * never `Math.random()`. The live version reads a real period-over-period
+ * delta computed from stored value snapshots.
+ */
+export function seededPercentChange(seedKey: string, min = -9, max = 16): number {
+  const rand = seededRandom(`${seedKey}:change`);
+  const pct = min + rand() * (max - min);
+  return Math.round(pct * 10) / 10;
+}
