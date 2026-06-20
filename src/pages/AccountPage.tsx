@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
+import { BottomSheet } from '../components/BottomSheet';
 import { useBilling } from '../context/useBilling';
 import { useCollection } from '../context/useCollection';
 import { FREE_COLLECTION_LIMIT } from '../lib/limits';
@@ -11,6 +12,9 @@ export function AccountPage() {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [justCancelled, setJustCancelled] = useState(false);
+  const [methodologyOpen, setMethodologyOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   async function handleCancel() {
     await cancel();
@@ -120,11 +124,64 @@ export function AccountPage() {
           </button>
         </div>
 
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <button
+            type="button"
+            onClick={() => setMethodologyOpen(true)}
+            className="block w-full text-left text-sm font-semibold text-ink"
+          >
+            How values are calculated
+          </button>
+          <div className="my-3 border-t border-slate-100" />
+          <button
+            type="button"
+            onClick={() => setPrivacyOpen(true)}
+            className="block w-full text-left text-sm font-semibold text-ink"
+          >
+            Privacy &amp; terms
+          </button>
+          <div className="my-3 border-t border-slate-100" />
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            className="block w-full text-left text-sm font-semibold text-ink"
+          >
+            Help &amp; support
+          </button>
+        </div>
+
         <p className="px-1 text-center text-xs text-ink-soft">
           Billing is mocked in this build — no real charge happens here. See the README for how to wire up
           RevenueCat for production.
         </p>
       </div>
+
+      <BottomSheet open={methodologyOpen} title="How values are calculated" onClose={() => setMethodologyOpen(false)}>
+        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-soft">
+          <li>
+            Raw comes from currently-listed asking prices; graded comes from actual sold sales. We never blend the
+            two into one number.
+          </li>
+          <li>We drop the single highest and single lowest entry, since those are usually outliers.</li>
+          <li>We report the low–high range and median of what's left.</li>
+          <li>We adjust the raw range for the condition you select. A certified grade already accounts for condition.</li>
+        </ol>
+      </BottomSheet>
+
+      <BottomSheet open={privacyOpen} title="Privacy & terms" onClose={() => setPrivacyOpen(false)}>
+        <p className="text-sm text-ink-soft">
+          This is a demo build of PanelWorth. Your collection and any photos you add are stored only on this
+          device — nothing is uploaded to a server. A full privacy policy and terms of service will be published
+          here before any public launch.
+        </p>
+      </BottomSheet>
+
+      <BottomSheet open={helpOpen} title="Help & support" onClose={() => setHelpOpen(false)}>
+        <p className="text-sm text-ink-soft">
+          PanelWorth is still in development. If something looks wrong or you have a question, support channels
+          will be listed here once this app is live.
+        </p>
+      </BottomSheet>
     </div>
   );
 }
