@@ -2,8 +2,6 @@ import { Link } from 'react-router-dom';
 import type { ComicIssue } from '../types/comic';
 import { KeyIssueBadge } from './KeyIssueBadge';
 import { OwnedBadge } from './OwnedBadge';
-import { TickerCode } from './TickerCode';
-import { tickerCode } from '../lib/ticker';
 
 interface ComicListItemProps {
   issue: ComicIssue;
@@ -37,7 +35,7 @@ export function ComicListItem({ issue, to, right, owned, onClick }: ComicListIte
           {issue.title} {issue.issueNumber}
         </p>
         <p className="truncate text-xs text-ink-soft">
-          <TickerCode code={tickerCode(issue)} /> · {issue.publisher} · {issue.year}
+          {issue.publisher} · {issue.year}
         </p>
         {issue.isKeyIssue || owned ? (
           <div className="mt-1 flex flex-wrap gap-1.5">

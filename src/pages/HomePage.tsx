@@ -1,19 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { ComicListItem } from '../components/ComicListItem';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
-import { AreaChart } from '../components/AreaChart';
 import { GainLossPill } from '../components/GainLossPill';
-import { TickerCode } from '../components/TickerCode';
-import { HoldingRow } from '../components/HoldingRow';
 import { getIssueById, registerDiscoveredIssue } from '../data/catalog';
 import { useCollection } from '../context/useCollection';
 import { fetchValue } from '../services/value';
 import { calculateBand, adjustBandForCondition, formatCurrency } from '../lib/valuation';
-import { buildValueHistory, seededPercentChange } from '../lib/history';
-import { tickerCode } from '../lib/ticker';
+import { seededPercentChange } from '../lib/history';
 import { useComicSearch } from '../lib/useComicSearch';
 import { toComicIssue, type SearchedComic } from '../lib/comicSearch';
 import type { ComicIssue, GradedSale, RawListing, SavedComic, ValueBand } from '../types/comic';
@@ -28,20 +24,31 @@ interface IssueBands {
   graded: ValueBand<GradedSale> | null;
 }
 
-/** Stable seed so the portfolio's illustrative trend/gain chip don't jitter on re-render. */
+/** Stable seed so the collection's illustrative change chip doesn't jitter on re-render. */
 const PORTFOLIO_SEED = 'portfolio-total';
 
 export function HomePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // Pre-filled from a barcode scan that found no confident catalog match (see ScanBarcodePage).
-  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
+  const initialQuery = searchParams.get('q') ?? '';
+  const [query, setQuery] = useState(initialQuery);
+  const [searchOpen, setSearchOpen] = useState(() => initialQuery.length > 0);
+  const searchSectionRef = useRef<HTMLDivElement>(null);
   const { status: searchStatus, results: searchResults } = useComicSearch(query);
   const { items, isSaved } = useCollection();
 
   function handleResultClick(comic: SearchedComic) {
     registerDiscoveredIssue(toComicIssue(comic));
     navigate(`/results/${comic.id}`);
+  }
+
+  function openSearch() {
+    setSearchOpen(true);
+    requestAnimationFrame(() => {
+      searchSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('comic-search')?.focus();
+    });
   }
 
   const [valueMap, setValueMap] = useState<Record<string, IssueBands>>({});
@@ -73,24 +80,16 @@ export function HomePage() {
   );
 
   const recent = useMemo(
-    () => [...enriched].sort((a, b) => b.saved.savedAt.localeCompare(a.saved.savedAt)).slice(0, 5),
+    () => [...enriched].sort((a, b) => b.saved.savedAt.localeCompare(a.saved.savedAt)).slice(0, 3),
     [enriched],
   );
 
-  function resolveMedian(saved: SavedComic): number | null {
+  function resolveBand(saved: SavedComic): { low: number; median: number; high: number } | null {
     const bands = valueMap[saved.issueId];
     if (!bands) return null;
-    if (saved.isSlabbed) return bands.graded ? bands.graded.median : null;
-    return bands.raw ? adjustBandForCondition(bands.raw, saved.condition).median : null;
-  }
-
-  function resolveRange(saved: SavedComic): { low: number; high: number } | null {
-    const bands = valueMap[saved.issueId];
-    if (!bands) return null;
-    if (saved.isSlabbed) return bands.graded ? { low: bands.graded.low, high: bands.graded.high } : null;
+    if (saved.isSlabbed) return bands.graded;
     if (!bands.raw) return null;
-    const adjusted = adjustBandForCondition(bands.raw, saved.condition);
-    return { low: adjusted.low, high: adjusted.high };
+    return adjustBandForCondition(bands.raw, saved.condition);
   }
 
   const portfolio = useMemo(() => {
@@ -99,12 +98,11 @@ export function HomePage() {
     let highTotal = 0;
     let pricedCount = 0;
     for (const { saved } of enriched) {
-      const median = resolveMedian(saved);
-      const range = resolveRange(saved);
-      if (median != null && range) {
-        medianTotal += median;
-        lowTotal += range.low;
-        highTotal += range.high;
+      const band = resolveBand(saved);
+      if (band) {
+        medianTotal += band.median;
+        lowTotal += band.low;
+        highTotal += band.high;
         pricedCount++;
       }
     }
@@ -115,26 +113,44 @@ export function HomePage() {
   const hasHoldings = items.length > 0;
   const hasPricing = portfolio.pricedCount > 0;
   const percentChange = hasPricing ? seededPercentChange(PORTFOLIO_SEED) : 0;
-  const chartValues = hasPricing
-    ? buildValueHistory(PORTFOLIO_SEED, portfolio.lowTotal, portfolio.highTotal).map((p) => (p.low + p.high) / 2)
-    : [];
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-6 pt-6">
-      <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-ink-on-brand">
-          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-            <path d="M5 4h11l3 3v13H5V4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            <path d="M9 9h6M9 13h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-        </div>
-        <span className="font-display text-lg font-bold text-ink">PanelWorth</span>
+      <p className="font-display text-xl font-semibold text-ink">Welcome</p>
+
+      <Link
+        to="/scan/cover"
+        className="mt-4 flex items-center gap-4 rounded-2xl bg-brand p-5 text-ink-on-brand hover:bg-brand-dark"
+      >
+        <CameraIcon />
+        <span>
+          <span className="block text-base font-semibold">Identify a comic</span>
+          <span className="mt-0.5 block text-sm text-ink-on-brand/80">Point your camera at the cover or barcode.</span>
+        </span>
+      </Link>
+      <Link to="/scan/barcode" className="mt-2 block text-center text-xs font-semibold text-ink-soft hover:text-ink">
+        Or scan the barcode instead
+      </Link>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={openSearch}
+          className="rounded-2xl border border-slate-200 p-3 text-center text-sm font-semibold text-ink hover:border-brand"
+        >
+          Search by title
+        </button>
+        <Link
+          to="/collection"
+          className="flex items-center justify-center rounded-2xl border border-slate-200 p-3 text-center text-sm font-semibold text-ink hover:border-brand"
+        >
+          My collection
+        </Link>
       </div>
-      <p className="mt-1 text-sm text-ink-soft">Find out what your comics are actually worth — honestly.</p>
 
       {hasHoldings ? (
         <div className="mt-5 rounded-2xl border border-slate-200 bg-paper p-4">
-          <p className="text-sm font-medium text-ink-soft">Portfolio value</p>
+          <p className="text-sm font-medium text-ink-soft">Your collection is worth about</p>
           {hasPricing ? (
             <>
               <div className="mt-1 flex items-baseline gap-2">
@@ -143,14 +159,9 @@ export function HomePage() {
                 </span>
                 <GainLossPill percent={percentChange} />
               </div>
-              <p className="mt-0.5 font-mono text-xs text-ink-soft">
-                Range {formatCurrency(portfolio.lowTotal)}–{formatCurrency(portfolio.highTotal)}
-              </p>
-              <div className="mt-3">
-                <AreaChart values={chartValues} positive={percentChange >= 0} height={72} />
-              </div>
-              <p className="mt-1 text-xs text-ink-soft">
-                Illustrative — we'll start tracking your collection's real value from today onward.
+              <p className="mt-2 text-xs text-ink-soft">
+                A fair-value estimate from real recent sales · {portfolio.pricedCount} comic
+                {portfolio.pricedCount === 1 ? '' : 's'}
               </p>
             </>
           ) : (
@@ -162,97 +173,91 @@ export function HomePage() {
       {recent.length > 0 ? (
         <div className="mt-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Tracked issues</h2>
+            <h2 className="text-sm font-semibold text-ink">Recently checked</h2>
             <Link to="/collection" className="text-xs font-semibold text-brand">
               See all
             </Link>
           </div>
 
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {recent.map(({ saved, issue }) => (
-              <Link
-                key={saved.savedId}
-                to={`/collection/${saved.savedId}`}
-                className="flex flex-none flex-col gap-1 rounded-xl border border-slate-200 bg-paper px-3 py-2"
-              >
-                <TickerCode code={tickerCode(issue)} className="text-xs font-semibold" />
-                <GainLossPill percent={seededPercentChange(issue.id)} size="sm" />
-              </Link>
-            ))}
-          </div>
+          <div className="mt-2 space-y-2">
+            {recent.map(({ saved, issue }) => {
+              const cover = saved.personalCoverUrl ?? issue.coverImageUrl;
+              const priced = saved.issueId in valueMap;
+              const band = resolveBand(saved);
 
-          <div className="mt-3 space-y-2">
-            {recent.map(({ saved, issue }) => (
-              <HoldingRow
-                key={saved.savedId}
-                saved={saved}
-                issue={issue}
-                median={resolveMedian(saved)}
-                percentChange={seededPercentChange(issue.id)}
-              />
-            ))}
+              return (
+                <Link
+                  key={saved.savedId}
+                  to={`/collection/${saved.savedId}`}
+                  className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 hover:border-slate-200 hover:bg-slate-50"
+                >
+                  <div className="flex h-14 w-10 flex-none items-center justify-center overflow-hidden rounded-md bg-brand-soft text-xs font-bold text-brand-dark">
+                    {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : issue.issueNumber}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {issue.title} {issue.issueNumber}
+                    </p>
+                    {issue.note ? <p className="truncate text-xs text-ink-soft">{issue.note}</p> : null}
+                  </div>
+                  <div className="flex-none text-right">
+                    {!priced ? (
+                      <span className="text-xs text-ink-soft">Pricing…</span>
+                    ) : !band ? (
+                      <span className="text-xs text-ink-soft">Not enough data</span>
+                    ) : (
+                      <>
+                        <p className="font-mono text-xs font-semibold text-ink">
+                          {formatCurrency(band.low)}–{formatCurrency(band.high)}
+                        </p>
+                        <GainLossPill percent={seededPercentChange(issue.id)} size="sm" />
+                      </>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : null}
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Link
-          to="/scan/cover"
-          className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 p-4 text-center hover:border-brand"
-        >
-          <CameraIcon />
-          <span className="text-sm font-semibold text-ink">Scan cover</span>
-        </Link>
-        <Link
-          to="/scan/barcode"
-          className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 p-4 text-center hover:border-brand"
-        >
-          <BarcodeIcon />
-          <span className="text-sm font-semibold text-ink">Scan barcode</span>
-        </Link>
-      </div>
+      <div ref={searchSectionRef} className="mt-6">
+        {searchOpen ? (
+          <>
+            <p className="text-sm font-semibold text-ink">Search by title</p>
+            <div className="mt-2">
+              <SearchBar value={query} onChange={setQuery} autoFocus />
+            </div>
+            <p className="mt-2 text-xs text-ink-soft">
+              Search covers comics from across publishers, powered by the Comic Vine database.
+            </p>
 
-      <p className="mt-3 text-xs text-ink-soft">
-        Search covers comics from across publishers, powered by the Comic Vine database. Cover and barcode scanning
-        are best-effort — full accuracy in production depends on live pricing data and a trained recognition model.
-      </p>
-
-      <div className="mt-5">
-        <SearchBar value={query} onChange={setQuery} />
-      </div>
-
-      <div className="mt-3">
-        {searchStatus === 'idle' ? (
-          <EmptyState
-            title="Search any comic"
-            message='Try "Amazing Spider-Man 300", "Saga", or "Spawn".'
-          />
-        ) : searchStatus === 'loading' ? (
-          <Spinner label="Searching…" />
-        ) : searchStatus === 'error' ? (
-          <EmptyState
-            title="Search is temporarily unavailable"
-            message="Try again in a moment."
-          />
-        ) : searchStatus === 'empty' ? (
-          <EmptyState
-            title="No match found"
-            message="Try a different spelling, or search by series only."
-          />
-        ) : (
-          <ul className="space-y-2">
-            {searchResults.map((comic) => (
-              <li key={comic.id}>
-                <ComicListItem
-                  issue={toComicIssue(comic)}
-                  to={`/results/${comic.id}`}
-                  owned={isSaved(comic.id)}
-                  onClick={() => handleResultClick(comic)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+            <div className="mt-3">
+              {searchStatus === 'idle' ? (
+                <EmptyState title="Search any comic" message='Try "Amazing Spider-Man 300", "Saga", or "Spawn".' />
+              ) : searchStatus === 'loading' ? (
+                <Spinner label="Searching…" />
+              ) : searchStatus === 'error' ? (
+                <EmptyState title="Search is temporarily unavailable" message="Try again in a moment." />
+              ) : searchStatus === 'empty' ? (
+                <EmptyState title="No match found" message="Try a different spelling, or search by series only." />
+              ) : (
+                <ul className="space-y-2">
+                  {searchResults.map((comic) => (
+                    <li key={comic.id}>
+                      <ComicListItem
+                        issue={toComicIssue(comic)}
+                        to={`/results/${comic.id}`}
+                        owned={isSaved(comic.id)}
+                        onClick={() => handleResultClick(comic)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -260,7 +265,7 @@ export function HomePage() {
 
 function CameraIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-brand" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 flex-none" aria-hidden="true">
       <path
         d="M4 8.5A1.5 1.5 0 015.5 7h2l1-2h7l1 2h2A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5v-9z"
         stroke="currentColor"
@@ -268,19 +273,6 @@ function CameraIcon() {
         strokeLinejoin="round"
       />
       <circle cx="12" cy="13" r="3.2" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function BarcodeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-brand" aria-hidden="true">
-      <path
-        d="M4 5v14M8 5v14M11 5v14M14 5v14M16.5 5v14M20 5v14"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
     </svg>
   );
 }
