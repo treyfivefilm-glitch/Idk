@@ -3,13 +3,12 @@ import { NavLink } from 'react-router-dom';
 const TABS = [
   { to: '/', label: 'Home', icon: HomeIcon },
   { to: '/collection', label: 'Collection', icon: CollectionIcon },
-  { to: '/movers', label: 'Movers', icon: MoversIcon },
   { to: '/account', label: 'Account', icon: AccountIcon },
 ];
 
 export function BottomNav() {
   return (
-    <nav className="grid grid-cols-4 border-t border-slate-100 bg-paper pb-[env(safe-area-inset-bottom)]">
+    <nav className="grid grid-cols-3 border-t border-slate-100 bg-paper pb-[env(safe-area-inset-bottom)]">
       {TABS.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to}
@@ -52,21 +51,6 @@ function CollectionIcon({ active }: { active: boolean }) {
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
       <rect x="3.5" y="4.5" width="13" height="16" rx="1.5" stroke="currentColor" strokeWidth={active ? 2.25 : 1.75} />
       <path d="M9 3.5h8a1 1 0 011 1V18" stroke="currentColor" strokeWidth={active ? 2.25 : 1.75} strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MoversIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M4 16l5-6 4 3 7-9"
-        stroke="currentColor"
-        strokeWidth={active ? 2.25 : 1.75}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M14 4h6v6" stroke="currentColor" strokeWidth={active ? 2.25 : 1.75} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
