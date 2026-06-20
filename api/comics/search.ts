@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { searchComicVine } from '../_lib/comicvine';
+import { searchComicVine } from '../_lib/comicvine.js';
 
 /**
  * GET /api/comics/search?q=...
