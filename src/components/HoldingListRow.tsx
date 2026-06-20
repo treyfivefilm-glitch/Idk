@@ -33,7 +33,7 @@ function gradeChip(saved: SavedComic): string {
 }
 
 export function HoldingListRow({ saved, issue, band, loading, percentChange }: HoldingListRowProps) {
-  const cover = saved.personalCoverUrl;
+  const cover = saved.personalCoverUrl ?? issue.coverImageUrl;
   const history = band ? buildValueHistory(issue.id, band.low, band.high) : [];
 
   return (

@@ -145,8 +145,8 @@ export function ComicDetailPage() {
 
         <div className="flex gap-4">
           <div className="flex h-32 w-24 flex-none items-center justify-center overflow-hidden rounded-xl bg-brand-soft text-brand-dark">
-            {saved.personalCoverUrl ? (
-              <img src={saved.personalCoverUrl} alt="" className="h-full w-full object-cover" />
+            {saved.personalCoverUrl || issue.coverImageUrl ? (
+              <img src={saved.personalCoverUrl ?? issue.coverImageUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <span className="text-lg font-bold">{issue.issueNumber}</span>
             )}
