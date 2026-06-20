@@ -47,6 +47,8 @@ export interface ComicIssue {
   isKeyIssue: boolean;
   /** UPC/EAN barcode, when the issue's print run included one. Older books often lack one. */
   barcode?: string;
+  /** Small/thumbnail catalog cover image (identification display only — never full resolution). */
+  coverImageUrl?: string;
   /** Recent currently-listed raw asking prices. */
   rawListings: RawListing[];
   /** Recent professionally-graded (CGC/CBCS) sold prices. */

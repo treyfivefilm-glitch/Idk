@@ -88,9 +88,9 @@ export function ScanBarcodePage() {
 
         {status === 'no-match' ? (
           <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-ink-soft">
-            We read barcode {scannedValue}, but it's not in our demo catalog yet.{' '}
-            <Link to="/" className="font-semibold text-brand">
-              Try manual search
+            We read barcode {scannedValue}, but couldn't confidently match it to a comic.{' '}
+            <Link to={`/?q=${encodeURIComponent(scannedValue)}`} className="font-semibold text-brand">
+              Search for it instead
             </Link>
             .
           </p>

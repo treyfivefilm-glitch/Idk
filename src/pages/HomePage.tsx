@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { ComicListItem } from '../components/ComicListItem';
 import { EmptyState } from '../components/EmptyState';
+import { Spinner } from '../components/Spinner';
 import { AreaChart } from '../components/AreaChart';
 import { GainLossPill } from '../components/GainLossPill';
 import { TickerCode } from '../components/TickerCode';
 import { HoldingRow } from '../components/HoldingRow';
-import { searchCatalog, getIssueById } from '../data/catalog';
+import { getIssueById, registerDiscoveredIssue } from '../data/catalog';
 import { useCollection } from '../context/useCollection';
 import { fetchValue } from '../services/value';
 import { calculateBand, adjustBandForCondition, formatCurrency } from '../lib/valuation';
 import { buildValueHistory, seededPercentChange } from '../lib/history';
 import { tickerCode } from '../lib/ticker';
+import { useComicSearch } from '../lib/useComicSearch';
+import { toComicIssue, type SearchedComic } from '../lib/comicSearch';
 import type { ComicIssue, GradedSale, RawListing, SavedComic, ValueBand } from '../types/comic';
 
 interface Entry {
@@ -29,9 +32,17 @@ interface IssueBands {
 const PORTFOLIO_SEED = 'portfolio-total';
 
 export function HomePage() {
-  const [query, setQuery] = useState('');
-  const results = useMemo(() => searchCatalog(query), [query]);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Pre-filled from a barcode scan that found no confident catalog match (see ScanBarcodePage).
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
+  const { status: searchStatus, results: searchResults } = useComicSearch(query);
   const { items, isSaved } = useCollection();
+
+  function handleResultClick(comic: SearchedComic) {
+    registerDiscoveredIssue(toComicIssue(comic));
+    navigate(`/results/${comic.id}`);
+  }
 
   const [valueMap, setValueMap] = useState<Record<string, IssueBands>>({});
 
@@ -202,8 +213,8 @@ export function HomePage() {
       </div>
 
       <p className="mt-3 text-xs text-ink-soft">
-        Search is the most reliable way to find a comic today. Cover and barcode scanning work against our demo
-        catalog — full accuracy in production depends on live pricing data and a trained recognition model.
+        Search covers comics from across publishers, powered by the Comic Vine database. Cover and barcode scanning
+        are best-effort — full accuracy in production depends on live pricing data and a trained recognition model.
       </p>
 
       <div className="mt-5">
@@ -211,21 +222,33 @@ export function HomePage() {
       </div>
 
       <div className="mt-3">
-        {query.trim() === '' ? (
+        {searchStatus === 'idle' ? (
           <EmptyState
-            title="Search our demo catalog"
-            message='Try "Spider-Man 300", "Hulk 181", or "Saga".'
+            title="Search any comic"
+            message='Try "Amazing Spider-Man 300", "Saga", or "Spawn".'
           />
-        ) : results.length === 0 ? (
+        ) : searchStatus === 'loading' ? (
+          <Spinner label="Searching…" />
+        ) : searchStatus === 'error' ? (
           <EmptyState
-            title="No match"
-            message="We couldn't find that in our demo catalog. Try a different title, issue number, or scan the cover/barcode instead."
+            title="Search is temporarily unavailable"
+            message="Try again in a moment."
+          />
+        ) : searchStatus === 'empty' ? (
+          <EmptyState
+            title="No match found"
+            message="Try a different spelling, or search by series only."
           />
         ) : (
           <ul className="space-y-2">
-            {results.map((issue) => (
-              <li key={issue.id}>
-                <ComicListItem issue={issue} to={`/results/${issue.id}`} owned={isSaved(issue.id)} />
+            {searchResults.map((comic) => (
+              <li key={comic.id}>
+                <ComicListItem
+                  issue={toComicIssue(comic)}
+                  to={`/results/${comic.id}`}
+                  owned={isSaved(comic.id)}
+                  onClick={() => handleResultClick(comic)}
+                />
               </li>
             ))}
           </ul>

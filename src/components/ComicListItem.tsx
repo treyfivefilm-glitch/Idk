@@ -11,17 +11,27 @@ interface ComicListItemProps {
   right?: React.ReactNode;
   /** Shows an "in your collection" badge — used to surface the duplicate-saver check in search/scan results. */
   owned?: boolean;
+  onClick?: () => void;
 }
 
-export function ComicListItem({ issue, to, right, owned }: ComicListItemProps) {
+export function ComicListItem({ issue, to, right, owned, onClick }: ComicListItemProps) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 hover:border-slate-200 hover:bg-slate-50"
     >
-      <div className="flex h-14 w-10 flex-none items-center justify-center rounded-md bg-brand-soft text-xs font-bold text-brand-dark">
-        {issue.issueNumber}
-      </div>
+      {issue.coverImageUrl ? (
+        <img
+          src={issue.coverImageUrl}
+          alt=""
+          className="h-14 w-10 flex-none rounded-md object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-10 flex-none items-center justify-center rounded-md bg-brand-soft text-xs font-bold text-brand-dark">
+          {issue.issueNumber}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-ink">
           {issue.title} {issue.issueNumber}
