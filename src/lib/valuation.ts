@@ -86,6 +86,16 @@ export function formatGradedSaleLabel(sale: GradedSale): string {
   return `${sale.gradingCompany} ${sale.grade.toFixed(1)} · ${sale.saleType}`;
 }
 
+/** One honest sentence about the sample behind a band, e.g. "Based on 6 real sales in the last 90 days." */
+export function sampleNote<T extends { price: number }>(
+  band: ValueBand<T> | null,
+  noun: 'real sales' | 'real asking prices',
+): string | undefined {
+  if (!band) return undefined;
+  const n = band.usedComps.length + band.excludedComps.length;
+  return `Based on ${n} ${noun} in the last 90 days. We drop the highest and lowest so one odd sale can't skew it.`;
+}
+
 const GRADING_COST_LOW = 20;
 const GRADING_COST_HIGH = 50;
 

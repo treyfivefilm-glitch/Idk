@@ -6,12 +6,10 @@ import { Spinner } from '../components/Spinner';
 import { KeyIssueBadge } from '../components/KeyIssueBadge';
 import { ConditionSelector } from '../components/ConditionSelector';
 import { ValueRangeCard } from '../components/ValueRangeCard';
-import { TickerCode } from '../components/TickerCode';
 import { useCollection } from '../context/useCollection';
 import { getIssueById } from '../data/catalog';
 import { fetchValue } from '../services/value';
-import { calculateBand, adjustBandForCondition } from '../lib/valuation';
-import { tickerCode } from '../lib/ticker';
+import { calculateBand, adjustBandForCondition, sampleNote } from '../lib/valuation';
 import type { Condition, GradedSale, GradingCompany, RawListing, SavedComic, ValueBand } from '../types/comic';
 
 export function ComicDetailPage() {
@@ -152,7 +150,9 @@ export function ComicDetailPage() {
             )}
           </div>
           <div className="flex-1">
-            <TickerCode code={tickerCode(issue)} className="text-sm font-semibold" />
+            <p className="text-sm font-semibold text-ink">
+              {issue.title} {issue.issueNumber}
+            </p>
             <p className="text-sm text-ink-soft">
               {issue.publisher} · {issue.year}
             </p>
@@ -193,15 +193,16 @@ export function ComicDetailPage() {
         </div>
 
         <div>
-          <label className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-3">
-            <span className="text-sm font-semibold text-ink">Professionally graded &amp; slabbed</span>
-            <input
-              type="checkbox"
-              checked={saved.isSlabbed}
-              onChange={(e) => updateItem(saved.savedId, { isSlabbed: e.target.checked })}
-              className="h-5 w-5 accent-brand"
-            />
-          </label>
+          <ConditionSelector
+            value={saved.condition}
+            onChange={(condition: Condition) => updateItem(saved.savedId, { condition, isSlabbed: false })}
+            graded={{
+              selected: saved.isSlabbed,
+              technical:
+                saved.gradingCompany && saved.grade ? `${saved.gradingCompany} ${saved.grade.toFixed(1)}` : 'CGC / CBCS',
+              onSelect: () => updateItem(saved.savedId, { isSlabbed: true }),
+            }}
+          />
 
           {saved.isSlabbed ? (
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -242,33 +243,30 @@ export function ComicDetailPage() {
                 />
               </div>
             </div>
-          ) : (
-            <div className="mt-3">
-              <ConditionSelector
-                value={saved.condition}
-                onChange={(condition: Condition) => updateItem(saved.savedId, { condition })}
-              />
-            </div>
-          )}
+          ) : null}
         </div>
 
         <div>
-          <h3 className="mb-2 text-sm font-semibold text-ink">Estimated value of your copy</h3>
+          <h3 className="mb-2 text-sm font-semibold text-ink">What it's worth</h3>
           {valueLoading ? (
             <Spinner label="Pricing your copy…" />
           ) : saved.isSlabbed ? (
             <ValueRangeCard
-              title="Graded (CGC/CBCS) — sold price"
+              title="Your copy"
+              subtitle="actual sales"
               band={gradedBand}
               accent="brand"
               emptyMessage="Not enough recent graded sales for this issue to price reliably."
+              note={sampleNote(gradedBand, 'real sales')}
             />
           ) : (
             <ValueRangeCard
-              title="Raw — asking price"
+              title="Your copy"
+              subtitle="currently asking"
               band={rawBand ? adjustBandForCondition(rawBand, saved.condition) : null}
               accent="value"
               emptyMessage="Not enough recent listings for this issue to price reliably."
+              note={sampleNote(rawBand, 'real asking prices')}
             />
           )}
           <Link to={`/results/${issue.id}`} className="mt-2 inline-block text-xs font-semibold text-brand">

@@ -11,7 +11,6 @@ import { CompsList } from '../components/CompsList';
 import { UpsellCard } from '../components/UpsellCard';
 import { HowCalculatedSheet } from '../components/HowCalculatedSheet';
 import { AddToCollectionSheet } from '../components/AddToCollectionSheet';
-import { TickerCode } from '../components/TickerCode';
 import { GainLossPill } from '../components/GainLossPill';
 import { AreaChart } from '../components/AreaChart';
 import { getIssueById } from '../data/catalog';
@@ -22,13 +21,13 @@ import {
   gradingAdvice,
   formatGradedSaleLabel,
   formatCurrency,
+  sampleNote,
 } from '../lib/valuation';
 import { ebaySoldListingsUrl, ebayActiveListingsUrl } from '../lib/ebay';
 import { FREE_COLLECTION_LIMIT } from '../lib/limits';
 import { useBilling } from '../context/useBilling';
 import { useCollection } from '../context/useCollection';
 import { buildValueHistory, seededPercentChange } from '../lib/history';
-import { tickerCode } from '../lib/ticker';
 import type { Condition, RawListing } from '../types/comic';
 
 const FREE_COMPS_LIMIT = 3;
@@ -48,6 +47,7 @@ export function ResultsPage() {
   const { items, savedCopiesOf, addItem } = useCollection();
 
   const [condition, setCondition] = useState<Condition>('good');
+  const [gradedSelected, setGradedSelected] = useState(false);
   const [valueState, setValueState] = useState<{ issueId: string; data: ValueResult } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
@@ -103,22 +103,26 @@ export function ResultsPage() {
       <PageHeader title={`${issue.title} ${issue.issueNumber}`} showBack />
 
       <div className="space-y-5 px-4 py-4">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <div>
+        <div className="flex gap-3">
+          <div className="flex h-28 w-20 flex-none items-center justify-center overflow-hidden rounded-xl bg-brand-soft text-brand-dark">
+            {issue.coverImageUrl ? (
+              <img src={issue.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-base font-bold">{issue.issueNumber}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
               <h2 className="text-xl font-bold text-ink">
                 {issue.title} {issue.issueNumber}
               </h2>
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-soft">
-                <TickerCode code={tickerCode(issue)} className="text-sm font-semibold" />
-                <span>
-                  · {issue.publisher} · {issue.year}
-                </span>
-              </p>
+              {issue.isKeyIssue ? <KeyIssueBadge /> : null}
             </div>
-            {issue.isKeyIssue ? <KeyIssueBadge /> : null}
+            <p className="mt-0.5 text-sm text-ink-soft">
+              {issue.publisher} · {issue.year}
+            </p>
+            <p className="mt-2 text-sm text-ink-soft">{issue.note}</p>
           </div>
-          <p className="mt-2 text-sm text-ink-soft">{issue.note}</p>
         </div>
 
         {savedCopies.length > 0 ? (
@@ -135,84 +139,99 @@ export function ResultsPage() {
           </div>
         ) : null}
 
-        <ConditionSelector value={condition} onChange={setCondition} />
+        <ConditionSelector
+          value={condition}
+          onChange={(c) => {
+            setCondition(c);
+            setGradedSelected(false);
+          }}
+          graded={{
+            selected: gradedSelected,
+            technical: 'CGC / CBCS',
+            onSelect: () => setGradedSelected(true),
+          }}
+        />
 
         {loading ? (
           <Spinner label="Pulling recent prices…" />
         ) : (
           <>
-            {adjustedRaw ? (
-              <div className="rounded-2xl border border-slate-200 bg-paper p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <TickerCode code={tickerCode(issue)} className="text-xs font-semibold" />
-                  <div className="flex gap-1">
-                    {RANGES.map((r) => (
-                      <button
-                        key={r.label}
-                        type="button"
-                        onClick={() => setRange(r.label)}
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          range === r.label ? 'bg-brand text-ink-on-brand' : 'text-ink-soft hover:bg-slate-50'
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
+            {(() => {
+              const activeBand = gradedSelected ? (isPro ? gradedBandTrimmed : null) : adjustedRaw;
+              if (!activeBand) return null;
+              return (
+                <div className="rounded-2xl border border-slate-200 bg-paper p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink-soft">Price trend</span>
+                    <div className="flex gap-1">
+                      {RANGES.map((r) => (
+                        <button
+                          key={r.label}
+                          type="button"
+                          onClick={() => setRange(r.label)}
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            range === r.label ? 'bg-brand text-ink-on-brand' : 'text-ink-soft hover:bg-slate-50'
+                          }`}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="font-display text-2xl font-semibold text-ink">
+                      {formatCurrency(activeBand.median)}
+                    </span>
+                    <GainLossPill percent={seededPercentChange(issue.id)} />
+                  </div>
+                  <div className="mt-3">
+                    <AreaChart
+                      values={buildValueHistory(
+                        issue.id,
+                        activeBand.low,
+                        activeBand.high,
+                        RANGES.find((r) => r.label === range)?.points,
+                      ).map((p) => (p.low + p.high) / 2)}
+                      positive={seededPercentChange(issue.id) >= 0}
+                      height={80}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    Illustrative — price history is a simulated trend, not yet a record of real period-over-period
+                    snapshots.
+                  </p>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="font-display text-2xl font-semibold text-ink">
-                    {formatCurrency(adjustedRaw.median)}
-                  </span>
-                  <GainLossPill percent={seededPercentChange(issue.id)} />
-                </div>
-                <div className="mt-3">
-                  <AreaChart
-                    values={buildValueHistory(
-                      issue.id,
-                      adjustedRaw.low,
-                      adjustedRaw.high,
-                      RANGES.find((r) => r.label === range)?.points,
-                    ).map((p) => (p.low + p.high) / 2)}
-                    positive={seededPercentChange(issue.id) >= 0}
-                    height={80}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Illustrative — price history is a simulated trend, not yet a record of real period-over-period
-                  snapshots.
-                </p>
-              </div>
-            ) : null}
+              );
+            })()}
 
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-ink">Value range</h3>
-                <button
-                  type="button"
-                  onClick={() => setSheetOpen(true)}
-                  className="text-xs font-semibold text-brand underline-offset-2 hover:underline"
-                >
-                  How we calculated this
-                </button>
-              </div>
-              <div className="space-y-3">
+              {gradedSelected ? (
                 <ValueRangeCard
-                  title="Raw — asking price"
-                  subtitle="currently listed"
-                  band={adjustedRaw}
-                  accent="value"
-                  emptyMessage="Not enough recent listings for this issue to price reliably."
-                />
-                <ValueRangeCard
-                  title="Graded (CGC/CBCS) — sold price"
+                  title="What it's worth"
                   subtitle="actual sales"
                   band={gradedBandTrimmed}
                   accent="brand"
                   locked={!isPro}
                   emptyMessage="Not enough recent graded sales for this issue to price reliably."
+                  note={sampleNote(gradedBandTrimmed, 'real sales')}
                 />
-              </div>
+              ) : (
+                <ValueRangeCard
+                  title="What it's worth"
+                  subtitle="currently asking"
+                  band={adjustedRaw}
+                  accent="value"
+                  emptyMessage="Not enough recent listings for this issue to price reliably."
+                  note={sampleNote(rawBandTrimmed, 'real asking prices')}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="mt-2 text-xs font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                How we calculated this
+              </button>
             </div>
 
             {isPro ? (
@@ -224,7 +243,8 @@ export function ResultsPage() {
             )}
 
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Currently listed — raw</h3>
+              <h3 className="mb-0.5 text-sm font-semibold text-ink">Asking prices right now</h3>
+              <p className="mb-2 text-xs text-ink-soft">Raw, currently listed — not sold yet.</p>
               <CompsList
                 items={value?.rawListings ?? []}
                 formatLabel={(item: RawListing) => item.label}
@@ -252,7 +272,8 @@ export function ResultsPage() {
             </div>
 
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Recent Trades — graded</h3>
+              <h3 className="mb-0.5 text-sm font-semibold text-ink">What people actually paid</h3>
+              <p className="mb-2 text-xs text-ink-soft">Recent completed sales · not asking prices.</p>
               {isPro ? (
                 <CompsList
                   items={value?.gradedSales ?? []}
@@ -275,7 +296,14 @@ export function ResultsPage() {
               </a>
             </div>
 
-            {atLimit ? (
+            {savedCopies.length > 0 ? (
+              <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gain-soft py-3 text-sm font-semibold text-gain">
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                In your collection
+              </div>
+            ) : atLimit ? (
               <UpsellCard
                 message={`Your free collection is capped at ${FREE_COLLECTION_LIMIT} comics. Go Pro to add more.`}
               />
@@ -285,7 +313,7 @@ export function ResultsPage() {
                 onClick={() => setAddSheetOpen(true)}
                 className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-ink-on-brand hover:bg-brand-dark"
               >
-                Add to collection
+                Add to my collection
               </button>
             )}
           </>

@@ -1,10 +1,10 @@
 /** Plain-language condition tiers shown to users (kept simple — no grading jargon). */
 export type Condition = 'worn' | 'good' | 'likeNew';
 
-export const CONDITIONS: { value: Condition; label: string; hint: string }[] = [
-  { value: 'worn', label: 'Well-worn', hint: 'Creases, tears, heavy shelf wear' },
-  { value: 'good', label: 'Good shape', hint: 'Normal wear, no major damage' },
-  { value: 'likeNew', label: 'Like-new', hint: 'Sharp corners, glossy, fresh-feeling' },
+export const CONDITIONS: { value: Condition; label: string; hint: string; technical: string }[] = [
+  { value: 'worn', label: 'Well-worn', hint: 'Creases, tears, heavy shelf wear', technical: 'raw · lower grade' },
+  { value: 'good', label: 'Good shape', hint: 'Normal wear, no major damage', technical: 'raw · mid grade' },
+  { value: 'likeNew', label: 'Like-new', hint: 'Sharp corners, glossy, fresh-feeling', technical: 'raw · high grade' },
 ];
 
 export type GradingCompany = 'CGC' | 'CBCS';
