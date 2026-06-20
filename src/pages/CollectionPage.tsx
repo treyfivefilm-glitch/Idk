@@ -156,8 +156,8 @@ export function CollectionPage() {
       arr.sort((a, b) =>
         `${a.issue.title} ${a.issue.issueNumber}`.localeCompare(`${b.issue.title} ${b.issue.issueNumber}`),
       );
-    } else if (sort === 'gain') {
-      arr.sort((a, b) => seededPercentChange(b.issue.id) - seededPercentChange(a.issue.id));
+    } else if (sort === 'recent') {
+      arr.sort((a, b) => b.saved.savedAt.localeCompare(a.saved.savedAt));
     } else if (sort === 'value') {
       arr.sort((a, b) => {
         const bandA = resolveBand(a.saved)?.median ?? -1;
@@ -187,16 +187,18 @@ export function CollectionPage() {
   const summary = useMemo(() => {
     let low = 0;
     let high = 0;
+    let medianTotal = 0;
     let pricedCount = 0;
     for (const entry of sorted) {
       const band = resolveBand(entry.saved);
       if (band) {
         low += band.low;
         high += band.high;
+        medianTotal += band.median;
         pricedCount++;
       }
     }
-    return { low, high, pricedCount, totalCount: sorted.length };
+    return { low, high, medianTotal, pricedCount, totalCount: sorted.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sorted, valueMap]);
 
@@ -271,6 +273,7 @@ export function CollectionPage() {
       <div className="space-y-4 px-4 py-4">
         <ValueSummaryCard
           seedKey={activeBoxId}
+          medianTotal={summary.medianTotal}
           low={summary.low}
           high={summary.high}
           pricedCount={summary.pricedCount}

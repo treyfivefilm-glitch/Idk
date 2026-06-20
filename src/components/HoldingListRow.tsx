@@ -2,12 +2,10 @@ import { Link } from 'react-router-dom';
 import type { ComicIssue, SavedComic } from '../types/comic';
 import { CONDITIONS } from '../types/comic';
 import { KeyIssueBadge } from './KeyIssueBadge';
-import { TickerCode } from './TickerCode';
 import { GainLossPill } from './GainLossPill';
 import { ValueHistorySparkline } from './ValueHistorySparkline';
 import { formatCurrency } from '../lib/valuation';
 import { buildValueHistory } from '../lib/history';
-import { tickerCode } from '../lib/ticker';
 
 export interface FlatBand {
   low: number;
@@ -50,7 +48,6 @@ export function HoldingListRow({ saved, issue, band, loading, percentChange }: H
           {issue.title} {issue.issueNumber}
         </p>
         <div className="mt-0.5 flex items-center gap-1.5">
-          <TickerCode code={tickerCode(issue)} className="text-xs" />
           <span className="truncate text-xs text-ink-soft">{gradeChip(saved)}</span>
           {issue.isKeyIssue ? <KeyIssueBadge /> : null}
         </div>

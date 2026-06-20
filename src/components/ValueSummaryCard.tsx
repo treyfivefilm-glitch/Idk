@@ -1,10 +1,12 @@
-import { buildValueHistory } from '../lib/history';
+import { buildValueHistory, seededPercentChange } from '../lib/history';
 import { formatCurrency } from '../lib/valuation';
+import { GainLossPill } from './GainLossPill';
 import { ValueHistorySparkline } from './ValueHistorySparkline';
 import { UpsellCard } from './UpsellCard';
 
 interface ValueSummaryCardProps {
   seedKey: string;
+  medianTotal: number;
   low: number;
   high: number;
   pricedCount: number;
@@ -12,23 +14,36 @@ interface ValueSummaryCardProps {
   isPro: boolean;
 }
 
-export function ValueSummaryCard({ seedKey, low, high, pricedCount, totalCount, isPro }: ValueSummaryCardProps) {
+export function ValueSummaryCard({
+  seedKey,
+  medianTotal,
+  low,
+  high,
+  pricedCount,
+  totalCount,
+  isPro,
+}: ValueSummaryCardProps) {
   const hasPricing = pricedCount > 0;
+  const percentChange = hasPricing ? seededPercentChange(seedKey) : 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-paper p-4">
-      <p className="text-sm font-semibold text-ink">Estimated collection value</p>
+      <p className="text-sm font-medium text-ink-soft">Worth about</p>
       {hasPricing ? (
-        <p className="mt-1 text-2xl font-bold text-value">
-          {formatCurrency(low)}–{formatCurrency(high)}
-        </p>
+        <>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="font-display text-3xl font-semibold text-ink">{formatCurrency(medianTotal)}</span>
+            <GainLossPill percent={percentChange} />
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">
+            {pricedCount} comic{pricedCount === 1 ? '' : 's'} · fair-value estimate from recent sales
+          </p>
+        </>
       ) : (
-        <p className="mt-1 text-sm text-ink-soft">Not enough recent data to price this collection reliably.</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          Not enough recent data to price {totalCount === 1 ? 'this comic' : 'this collection'} reliably yet.
+        </p>
       )}
-      <p className="mt-0.5 text-xs text-ink-soft">
-        Based on {pricedCount} of {totalCount} item{totalCount === 1 ? '' : 's'} with enough recent data
-        {pricedCount < totalCount ? '; the rest are excluded from this total.' : '.'}
-      </p>
 
       {!isPro ? (
         <div className="mt-3">

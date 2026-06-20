@@ -1,4 +1,4 @@
-export type SortMode = 'value' | 'gain' | 'series';
+export type SortMode = 'value' | 'recent' | 'series';
 export type GroupMode = 'none' | 'series' | 'creator' | 'grade' | 'box';
 
 interface CollectionToolbarProps {
@@ -14,8 +14,8 @@ export function CollectionToolbar({ sort, onSortChange, group, onGroupChange, sh
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex rounded-full border border-slate-200 p-0.5" role="group" aria-label="Sort by">
-        <TabButton label="Value" selected={sort === 'value'} onClick={() => onSortChange('value')} />
-        <TabButton label="Gain" selected={sort === 'gain'} onClick={() => onSortChange('gain')} />
+        <TabButton label="Most valuable" selected={sort === 'value'} onClick={() => onSortChange('value')} />
+        <TabButton label="Recently added" selected={sort === 'recent'} onClick={() => onSortChange('recent')} />
         <TabButton label="Series" selected={sort === 'series'} onClick={() => onSortChange('series')} />
       </div>
 
